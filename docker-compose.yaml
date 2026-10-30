@@ -32,6 +32,7 @@ services:
     build:
       context: .
       dockerfile: docker/php/Dockerfile
+    command: sh -c "composer dump-autoload --no-interaction && exec php-fpm"
     volumes:
       - .:/app
     networks:

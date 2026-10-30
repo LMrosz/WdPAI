@@ -35,3 +35,6 @@ RUN { \
     } > /usr/local/etc/php/conf.d/mealplanner.ini
 
 COPY . .
+
+ENV COMPOSER_ALLOW_SUPERUSER=1
+RUN composer dump-autoload --optimize --no-interaction
