@@ -12,6 +12,8 @@
   --color-text: #1b1c1a;
   --color-muted: #475569;
   --color-border: rgba(212, 175, 55, 0.25);
+  --color-gold-trim: rgba(212, 175, 55, 0.4);
+  --color-on-primary: #ffffff;
 
   /* typografia */
   --font-serif: "Playfair Display", Georgia, "Times New Roman", serif;
@@ -29,6 +31,9 @@
   /* obramowania */
   --radius: 0.25rem;
   --radius-lg: 0.5rem;
+
+  /* cień (ambient) */
+  --shadow-ambient: 0 12px 32px -4px rgba(74, 18, 32, 0.08);
 }
 
 /* 2. Box model: szerokość obejmuje padding i border */
@@ -98,15 +103,144 @@ nav ul {
   list-style: none;
 }
 
-/* Grid: sekcja hero w jednej kolumnie, pod nią rząd statystyk */
-.hero {
+/* Grid: treść hero w jednej kolumnie, pod nią rząd statystyk */
+.hero-inner {
   display: grid;
-  gap: var(--space-lg);
+  gap: var(--space-xl);
 }
 
 .stats {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(9rem, 1fr));
   gap: var(--space-md);
+  margin: 0;
+}
+
+/* 5. Wygląd komponentów (kolory, odstępy, obramowania z DESIGN.md) */
+
+/* Nagłówek: powierzchnia z cienką złotą linią */
+.site-header {
+  padding-block: var(--space-md);
+  background-color: var(--color-surface);
+  border-bottom: 1px solid var(--color-border);
+}
+
+.brand {
+  margin: 0;
+}
+
+.brand a {
+  font-family: var(--font-serif);
+  font-size: 1.5rem;
+  font-weight: 600;
+  text-decoration: none;
+}
+
+/* label-sm: wersaliki z rozstrzeleniem liter */
+.brand small,
+nav a {
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.brand small {
+  color: var(--color-muted);
+}
+
+nav a {
+  padding-bottom: var(--space-xs);
+  color: var(--color-muted);
+  text-decoration: none;
+}
+
+nav a[aria-current="page"] {
+  color: var(--color-primary);
+  border-bottom: 1px solid var(--color-gold);
+}
+
+/* Hero: bordowy gradient przechodzący w kremowe tło */
+.hero {
+  padding-block: var(--space-xl);
+  color: var(--color-on-primary);
+  background: linear-gradient(
+    180deg,
+    var(--color-primary-deep) 0%,
+    var(--color-primary) 70%,
+    var(--color-canvas) 100%
+  );
+}
+
+.hero h1 {
+  color: var(--color-on-primary);
+}
+
+.hero-text p {
+  max-width: 40rem;
+}
+
+.hero .eyebrow {
+  color: var(--color-gold-light);
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+/* Główny przycisk: ciemne wino, biały tekst, złote obramowanie */
+.button {
+  display: inline-block;
+  padding: var(--space-md) var(--space-lg);
+  color: var(--color-on-primary);
+  background-color: var(--color-primary-deep);
+  border: 1px solid var(--color-gold-trim);
+  border-radius: var(--radius);
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-decoration: none;
+  text-transform: uppercase;
+}
+
+/* Karta statystyk: wartość (Playfair) nad etykietą */
+.stat-card {
+  display: flex;
+  flex-direction: column-reverse;
+  justify-content: flex-end;
+  padding: var(--space-md) var(--space-lg);
+  color: var(--color-text);
+  background-color: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-ambient);
+}
+
+.stat-card dt {
+  color: var(--color-muted);
+  font-size: 0.6875rem;
+  font-weight: 500;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.stat-card dd {
+  margin: 0;
+  color: var(--color-primary);
+  font-family: var(--font-serif);
+  font-size: 1.75rem;
+  font-weight: 600;
+  line-height: 1.2857;
+}
+
+/* Stopka */
+.site-footer {
+  padding-block: var(--space-lg);
+  color: var(--color-muted);
+  background-color: var(--color-surface);
+  border-top: 1px solid var(--color-border);
+}
+
+.site-footer p {
   margin: 0;
 }

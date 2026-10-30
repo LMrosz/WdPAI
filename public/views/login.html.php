@@ -11,14 +11,16 @@
     <link rel="stylesheet" href="/css/style.css">
 </head>
 <body>
-    <header class="page actions">
-        <p><a href="/">VinoKeep</a> <small>Winnica i enoturystyka</small></p>
-        <nav aria-label="Nawigacja główna">
-            <ul>
-                <li><a href="/">Strona główna</a></li>
-                <li><a href="/login" aria-current="page">Zaloguj się</a></li>
-            </ul>
-        </nav>
+    <header class="site-header">
+        <div class="page actions">
+            <p class="brand"><a href="/">VinoKeep</a> <small>Winnica i enoturystyka</small></p>
+            <nav aria-label="Nawigacja główna">
+                <ul>
+                    <li><a href="/">Strona główna</a></li>
+                    <li><a href="/login" aria-current="page">Zaloguj się</a></li>
+                </ul>
+            </nav>
+        </div>
     </header>
 
     <main class="page">
@@ -49,8 +51,10 @@
         </section>
     </main>
 
-    <footer class="page">
-        <p><small>© 2024 VinoKeep Terroirs &amp; Cellar Systems. Wszelkie prawa zastrzeżone.</small></p>
+    <footer class="site-footer">
+        <div class="page">
+            <p><small>© 2024 VinoKeep Terroirs &amp; Cellar Systems. Wszelkie prawa zastrzeżone.</small></p>
+        </div>
     </footer>
 </body>
 </html>

@@ -11,39 +11,45 @@
     <link rel="stylesheet" href="/css/style.css">
 </head>
 <body>
-    <header class="page actions">
-        <p><a href="/">VinoKeep</a> <small>Winnica i enoturystyka</small></p>
-        <nav aria-label="Nawigacja główna">
-            <ul>
-                <li><a href="/" aria-current="page">Strona główna</a></li>
-                <li><a href="/login">Zaloguj się</a></li>
-            </ul>
-        </nav>
+    <header class="site-header">
+        <div class="page actions">
+            <p class="brand"><a href="/">VinoKeep</a> <small>Winnica i enoturystyka</small></p>
+            <nav aria-label="Nawigacja główna">
+                <ul>
+                    <li><a href="/" aria-current="page">Strona główna</a></li>
+                    <li><a href="/login">Zaloguj się</a></li>
+                </ul>
+            </nav>
+        </div>
     </header>
 
-    <main class="page">
+    <main>
         <section class="hero" aria-labelledby="hero-title">
-            <div>
-                <p><?= $e($estate['label']) ?></p>
-                <h1 id="hero-title">Witamy w <?= $e($estate['name']) ?> — <?= $e($estate['headline']) ?></h1>
-                <p><?= $e($estate['intro']) ?></p>
-                <p class="actions">
-                    <a href="/login">Zaloguj się, aby zarezerwować degustację</a>
-                </p>
+            <div class="page hero-inner">
+                <div class="hero-text">
+                    <p class="eyebrow"><?= $e($estate['label']) ?></p>
+                    <h1 id="hero-title">Witamy w <?= $e($estate['name']) ?> — <?= $e($estate['headline']) ?></h1>
+                    <p><?= $e($estate['intro']) ?></p>
+                    <p class="actions">
+                        <a class="button" href="/login">Zaloguj się, aby zarezerwować degustację</a>
+                    </p>
+                </div>
+                <dl class="stats">
+                    <?php foreach ($estate['stats'] as $stat): ?>
+                        <div class="stat-card">
+                            <dt><?= $e($stat['label']) ?></dt>
+                            <dd><?= $e($stat['value']) ?></dd>
+                        </div>
+                    <?php endforeach; ?>
+                </dl>
             </div>
-            <dl class="stats">
-                <?php foreach ($estate['stats'] as $stat): ?>
-                    <div class="stat-card">
-                        <dt><?= $e($stat['label']) ?></dt>
-                        <dd><?= $e($stat['value']) ?></dd>
-                    </div>
-                <?php endforeach; ?>
-            </dl>
         </section>
     </main>
 
-    <footer class="page">
-        <p><small>© 2024 VinoKeep Terroirs &amp; Cellar Systems. Wszelkie prawa zastrzeżone.</small></p>
+    <footer class="site-footer">
+        <div class="page">
+            <p><small>© 2024 VinoKeep Terroirs &amp; Cellar Systems. Wszelkie prawa zastrzeżone.</small></p>
+        </div>
     </footer>
 </body>
 </html>
