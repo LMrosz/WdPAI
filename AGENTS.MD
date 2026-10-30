@@ -218,7 +218,16 @@ W projekcie nie ma obecnie skonfigurowanego zestawu testów automatycznych ani n
 
 - Praca jest zapisywana w małych, logicznych commitach w stylu Conventional Commits, np. `feat: add hover and focus-visible states`, `chore: ...`, `docs: ...`.
 - **Commity i push wykonuje użytkownik.** Agent nie wykonuje `git commit` ani `git push`; po zakończeniu kroku podaje, które pliki dodać (`git add`) i proponuje tytuł commitu.
-- Nie wysyłaj zmian na GitHub bez wyraźnej prośby.
+- Nie wysyłaj zmian na GitHub bez wyraźnej prośby, jeśli zostaniesz o to poproszony nazywaj commity w następujący sposób:
+
+| Prefiks | Zastosowanie | Przykład |
+| :--- | :--- | :--- |
+| feat | Nowa funkcja | feat: add registration form |
+| fix | Naprawa błędu | fix: validate empty email |
+| docs | Dokumentacja | docs: explain docker setup |
+| refactor | Zmiana struktury | refactor: extract user repository |
+| test | Testy | test: cover login validation |
+| chore | Konfiguracja | chore: configure nginx |
 
 ## Zasady dla agentów AI
 
