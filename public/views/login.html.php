@@ -5,9 +5,10 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title><?= $e($pageTitle) ?></title>
+    <link rel="stylesheet" href="/css/style.css">
 </head>
 <body>
-    <header>
+    <header class="page actions">
         <p><a href="/">VinoKeep</a> <small>Winnica i enoturystyka</small></p>
         <nav aria-label="Nawigacja główna">
             <ul>
@@ -17,7 +18,7 @@
         </nav>
     </header>
 
-    <main>
+    <main class="page">
         <section aria-labelledby="login-title">
             <h1 id="login-title">Logowanie do VinoKeep</h1>
             <p>Zaloguj się jako gość, piwniczy lub właściciel winnicy.</p>
@@ -45,7 +46,7 @@
         </section>
     </main>
 
-    <footer>
+    <footer class="page">
         <p><small>© 2024 VinoKeep Terroirs &amp; Cellar Systems. Wszelkie prawa zastrzeżone.</small></p>
     </footer>
 </body>

@@ -5,9 +5,10 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title><?= $e($pageTitle) ?></title>
+    <link rel="stylesheet" href="/css/style.css">
 </head>
 <body>
-    <header>
+    <header class="page actions">
         <p><a href="/">VinoKeep</a> <small>Winnica i enoturystyka</small></p>
         <nav aria-label="Nawigacja główna">
             <ul>
@@ -17,17 +18,19 @@
         </nav>
     </header>
 
-    <main>
-        <section aria-labelledby="hero-title">
-            <p><?= $e($estate['label']) ?></p>
-            <h1 id="hero-title">Witamy w <?= $e($estate['name']) ?> — <?= $e($estate['headline']) ?></h1>
-            <p><?= $e($estate['intro']) ?></p>
-            <p>
-                <a href="/login">Zaloguj się, aby zarezerwować degustację</a>
-            </p>
-            <dl>
+    <main class="page">
+        <section class="hero" aria-labelledby="hero-title">
+            <div>
+                <p><?= $e($estate['label']) ?></p>
+                <h1 id="hero-title">Witamy w <?= $e($estate['name']) ?> — <?= $e($estate['headline']) ?></h1>
+                <p><?= $e($estate['intro']) ?></p>
+                <p class="actions">
+                    <a href="/login">Zaloguj się, aby zarezerwować degustację</a>
+                </p>
+            </div>
+            <dl class="stats">
                 <?php foreach ($estate['stats'] as $stat): ?>
-                    <div>
+                    <div class="stat-card">
                         <dt><?= $e($stat['label']) ?></dt>
                         <dd><?= $e($stat['value']) ?></dd>
                     </div>
@@ -36,7 +39,7 @@
         </section>
     </main>
 
-    <footer>
+    <footer class="page">
         <p><small>© 2024 VinoKeep Terroirs &amp; Cellar Systems. Wszelkie prawa zastrzeżone.</small></p>
     </footer>
 </body>
