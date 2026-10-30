@@ -153,6 +153,7 @@ nav a {
 nav a {
   padding-bottom: var(--space-xs);
   color: var(--color-muted);
+  border-bottom: 1px solid transparent;
   text-decoration: none;
 }
 
@@ -246,7 +247,42 @@ nav a[aria-current="page"] {
   margin: 0;
 }
 
-/* 6. Responsywność (mobile first) — style bazowe dotyczą telefonów i mniejszych ekranów */
+/* 6. Stany :hover i :focus-visible */
+
+/* :hover — wskazówka dla myszy */
+a:hover {
+  color: var(--color-primary-hover);
+}
+
+nav a:hover {
+  color: var(--color-primary);
+  border-bottom-color: var(--color-gold-trim);
+}
+
+.button:hover {
+  color: var(--color-on-primary);
+  background-color: var(--color-primary-hover);
+  box-shadow: 0 0 12px var(--color-gold-trim);
+}
+
+.button:active {
+  background-color: var(--color-primary-deep);
+  box-shadow: none;
+}
+
+/* :focus-visible — wyraźny kontur tylko dla nawigacji klawiaturą (kontrast min. 3:1) */
+a:focus-visible,
+button:focus-visible {
+  outline: 3px solid var(--color-primary);
+  outline-offset: 3px;
+}
+
+/* na ciemnym bordo kontur w jaśniejszym złocie */
+.hero a:focus-visible {
+  outline-color: var(--color-gold-light);
+}
+
+/* 7. Responsywność (mobile first) — style bazowe dotyczą telefonów i mniejszych ekranów */
 
 /* Desktop (od 1024px): display-lg 56px / 68px, marginesy 4rem, większe odstępy */
 @media (min-width: 64rem) {
