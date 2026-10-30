@@ -23,6 +23,8 @@
   --space-md: 1rem;
   --space-lg: 1.5rem;
   --space-xl: 2.5rem;
+  --page-margin: 1.25rem;            /* margines boczny (mobile) */
+  --page-max: 90rem;                 /* maks. szerokość treści: 1440px */
 
   /* obramowania */
   --radius: 0.25rem;
@@ -70,4 +72,41 @@ a {
   color: var(--color-primary);
   text-decoration-thickness: 0.08em;
   text-underline-offset: 0.2em;
+}
+
+/* 4. Układ strony: kontener, Flexbox (nagłówek, nawigacja), Grid (hero, statystyki) */
+.page {
+  width: min(100% - 2 * var(--page-margin), var(--page-max));
+  margin-inline: auto;
+}
+
+/* Flexbox: jeden kierunek — logo po lewej, nawigacja po prawej */
+.actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-md);
+  flex-wrap: wrap;
+}
+
+nav ul {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-md);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+/* Grid: sekcja hero w jednej kolumnie, pod nią rząd statystyk */
+.hero {
+  display: grid;
+  gap: var(--space-lg);
+}
+
+.stats {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(9rem, 1fr));
+  gap: var(--space-md);
+  margin: 0;
 }
