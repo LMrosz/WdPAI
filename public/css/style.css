@@ -247,6 +247,104 @@ nav a[aria-current="page"] {
   margin: 0;
 }
 
+/* Strona logowania: karta wyśrodkowana (Grid), pola formularza w kolumnie (Flexbox) */
+.auth {
+  display: grid;
+  justify-items: center;
+  padding-block: var(--space-xl);
+}
+
+.auth-card {
+  width: min(100%, 30rem);
+  padding: var(--space-lg);
+  background-color: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-ambient);
+}
+
+.auth-card h1 {
+  font-size: 2rem;
+  line-height: 1.25;
+}
+
+.auth-intro {
+  color: var(--color-muted);
+}
+
+.auth-back {
+  margin: var(--space-lg) 0 0;
+  text-align: center;
+}
+
+/* Formularz: bez serifów, pola prostokątne z cienkim szarym obramowaniem */
+fieldset {
+  min-width: 0;
+  margin: 0 0 var(--space-lg);
+  padding: 0;
+  border: 0;
+}
+
+legend {
+  margin-bottom: var(--space-md);
+  padding: 0;
+  color: var(--color-muted);
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.form-field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+  margin: 0 0 var(--space-md);
+}
+
+label {
+  font-size: 0.875rem;
+  font-weight: 600;
+}
+
+input[type="email"],
+input[type="password"] {
+  width: 100%;
+  padding: 0.75rem var(--space-md);
+  color: var(--color-text);
+  background-color: var(--color-canvas);
+  border: 1px solid var(--color-muted);
+  border-radius: var(--radius);
+  font: inherit;
+}
+
+.form-check {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  margin: 0;
+}
+
+.form-check label {
+  font-weight: 400;
+}
+
+input[type="checkbox"] {
+  flex: none;
+  width: 1.125rem;
+  height: 1.125rem;
+  margin: 0;
+  accent-color: var(--color-primary);
+}
+
+/* Przycisk wysyłki na całą szerokość karty */
+.button-block {
+  width: 100%;
+  cursor: pointer;
+  font-family: inherit;
+  text-align: center;
+}
+
 /* 6. Stany :hover i :focus-visible */
 
 /* :hover — wskazówka dla myszy */
@@ -270,11 +368,22 @@ nav a:hover {
   box-shadow: none;
 }
 
+input:hover {
+  border-color: var(--color-primary);
+}
+
 /* :focus-visible — wyraźny kontur tylko dla nawigacji klawiaturą (kontrast min. 3:1) */
 a:focus-visible,
 button:focus-visible {
   outline: 3px solid var(--color-primary);
   outline-offset: 3px;
+}
+
+/* pola formularza: złote obramowanie + własny kontur zamiast domyślnego */
+input:focus-visible {
+  border-color: var(--color-gold);
+  outline: 3px solid var(--color-primary);
+  outline-offset: 2px;
 }
 
 /* na ciemnym bordo kontur w jaśniejszym złocie */
@@ -310,5 +419,13 @@ button:focus-visible {
 
   .stats {
     gap: var(--space-lg);
+  }
+
+  .auth {
+    padding-block: var(--space-2xl);
+  }
+
+  .auth-card {
+    padding: var(--space-xl);
   }
 }

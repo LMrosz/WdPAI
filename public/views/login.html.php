@@ -23,31 +23,31 @@
         </div>
     </header>
 
-    <main class="page">
-        <section aria-labelledby="login-title">
+    <main class="page auth">
+        <section class="auth-card" aria-labelledby="login-title">
             <h1 id="login-title">Logowanie do VinoKeep</h1>
-            <p>Zaloguj się jako gość, piwniczy lub właściciel winnicy.</p>
+            <p class="auth-intro">Zaloguj się jako gość, piwniczy lub właściciel winnicy.</p>
 
             <form action="<?= $e($formAction) ?>" method="post">
                 <fieldset>
                     <legend>Dane logowania</legend>
-                    <p>
+                    <p class="form-field">
                         <label for="email">Adres e-mail</label>
                         <input type="email" id="email" name="email" autocomplete="username" required>
                     </p>
-                    <p>
+                    <p class="form-field">
                         <label for="password">Hasło</label>
                         <input type="password" id="password" name="password" autocomplete="current-password" required>
                     </p>
-                    <p>
+                    <p class="form-check">
                         <input type="checkbox" id="remember" name="remember">
                         <label for="remember">Zapamiętaj mnie na tym urządzeniu</label>
                     </p>
                 </fieldset>
-                <p><button type="submit">Zaloguj się</button></p>
+                <button type="submit" class="button button-block">Zaloguj się</button>
             </form>
 
-            <p><a href="/">Wróć na stronę główną</a></p>
+            <p class="auth-back"><a href="/">Wróć na stronę główną</a></p>
         </section>
     </main>
 
