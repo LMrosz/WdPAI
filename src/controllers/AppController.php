@@ -17,4 +17,10 @@ abstract class AppController
         extract($variables, EXTR_SKIP);
         require $templatePath;
     }
+
+    /** Przekierowanie po udanym żądaniu POST (303 See Other → przeglądarka wykona GET). */
+    protected function redirect(string $path): void
+    {
+        header('Location: ' . $path, true, 303);
+    }
 }
