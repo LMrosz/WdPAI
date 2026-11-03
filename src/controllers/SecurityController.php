@@ -10,7 +10,8 @@ final class SecurityController extends AppController
     public function login(): void
     {
         $this->render('login', [
-            'pageTitle' => 'VinoKeep — logowanie',
+            'pageTitle' => $this->text('login.page_title'),
+            'activePage' => 'login',
             'formAction' => '/login',
         ]);
     }
