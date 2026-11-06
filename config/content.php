@@ -23,6 +23,7 @@ return [
         'label' => 'Nawigacja główna',
         'home' => 'Strona główna',
         'wines' => 'Nasze wina',
+        'tastings' => 'Degustacje',
         'login' => 'Zaloguj się',
     ],
 
@@ -137,6 +138,50 @@ return [
                 'price' => '89 zł',
             ],
         ],
+    ],
+
+    'tastings' => [
+        'page_title' => 'Degustacje — {site.name}',
+        'eyebrow' => 'Wizyta w posiadłości',
+        'title' => 'Degustacje',
+        'intro' => 'Spróbuj win prosto z piwnicy {site.name}. Każda wizyta odbywa się w niewielkiej grupie, '
+            . 'z kieliszkiem w ręku i opowieścią o winnicy.',
+        'offers' => [
+            [
+                'name' => 'Degustacja klasyczna',
+                'badge' => 'Na początek',
+                'description' => 'Trzy wina z bieżących roczników, podane z pieczywem i serami z okolicy.',
+                'duration' => '1,5 godziny',
+                'group' => 'do 8 osób',
+                'price' => '90 zł / osoba',
+            ],
+            [
+                'name' => 'Degustacja Sepremento',
+                'badge' => 'Flagowa',
+                'description' => 'Pionowa degustacja flagowego wina posiadłości z krótkim spacerem między krzewami.',
+                'duration' => '2 godziny',
+                'group' => 'do 6 osób',
+                'price' => '150 zł / osoba',
+            ],
+            [
+                'name' => 'Kolacja w winnicy',
+                'badge' => null,
+                'description' => 'Kolacja przy długim stole, do której każde danie ma dobrane wino z naszej piwnicy.',
+                'duration' => '3 godziny',
+                'group' => 'do 12 osób',
+                'price' => '260 zł / osoba',
+            ],
+        ],
+        'steps_title' => 'Jak to działa',
+        'steps' => [
+            'Wybierz rodzaj degustacji i dogodny termin.',
+            'Zaloguj się i zarezerwuj miejsca dla swojej grupy.',
+            'Przyjdź do posiadłości — resztą zajmie się piwniczy.',
+        ],
+        'duration_label' => 'Czas',
+        'cta_title' => 'Zarezerwuj wizytę',
+        'cta_text' => 'Rezerwacja wymaga konta gościa. Zaloguj się, aby wybrać termin i liczbę osób.',
+        'cta' => 'Zaloguj się, aby zarezerwować degustację',
     ],
 
     'login' => [

@@ -351,7 +351,7 @@ input[type="checkbox"] {
   text-align: center;
 }
 
-/* Katalog win: Grid z kartami, liczba kolumn dopasowuje się do szerokości */
+/* Katalog (wina, degustacje): Grid z kartami, liczba kolumn dopasowuje się do szerokości */
 .catalog-page {
   padding-block: var(--space-xl);
 }
@@ -363,14 +363,14 @@ input[type="checkbox"] {
 
 .catalog {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(16rem, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(16rem, 1fr));
   gap: var(--space-md);
   margin: 0;
   padding: 0;
   list-style: none;
 }
 
-.wine-card {
+.card {
   display: flex;
   flex-direction: column;
   gap: var(--space-sm);
@@ -382,18 +382,18 @@ input[type="checkbox"] {
   box-shadow: var(--shadow-ambient);
 }
 
-.wine-card h2 {
+.card h2 {
   margin: 0;
   font-size: 1.5rem;
   line-height: 1.3333;
 }
 
-.wine-card p {
+.card p {
   margin: 0;
 }
 
 /* odznaka nagrody: pełne zaokrąglenie (kapsuła) */
-.wine-badge {
+.card-badge {
   align-self: flex-start;
   padding: var(--space-xs) var(--space-sm);
   border: 1px solid var(--color-gold-trim);
@@ -404,7 +404,7 @@ input[type="checkbox"] {
   text-transform: uppercase;
 }
 
-.wine-meta {
+.card-meta {
   color: var(--color-muted);
   font-size: 0.75rem;
   font-weight: 600;
@@ -412,11 +412,11 @@ input[type="checkbox"] {
   text-transform: uppercase;
 }
 
-.wine-notes {
+.card-text {
   flex: 1;
 }
 
-.wine-price {
+.card-price {
   display: flex;
   flex-direction: column;
   padding-top: var(--space-md);
@@ -427,13 +427,64 @@ input[type="checkbox"] {
   font-weight: 600;
 }
 
-.wine-price small {
+.card-price small {
   color: var(--color-muted);
   font-family: var(--font-sans);
   font-size: 0.6875rem;
   font-weight: 500;
   letter-spacing: 0.06em;
   text-transform: uppercase;
+}
+
+/* Kroki rezerwacji: lista numerowana z licznikiem CSS */
+.steps-section {
+  margin-top: var(--space-2xl);
+}
+
+.steps {
+  display: grid;
+  gap: var(--space-md);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  counter-reset: step;
+}
+
+.steps li {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-md);
+  counter-increment: step;
+}
+
+.steps li::before {
+  content: counter(step);
+  flex: none;
+  width: 2rem;
+  height: 2rem;
+  color: var(--color-primary);
+  border: 1px solid var(--color-gold-trim);
+  border-radius: 9999px;
+  font-family: var(--font-serif);
+  font-weight: 600;
+  line-height: 1.875rem;
+  text-align: center;
+}
+
+.cta-box {
+  margin-top: var(--space-xl);
+  padding: var(--space-lg);
+  background-color: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+}
+
+.cta-box p {
+  max-width: 40rem;
+}
+
+.cta-box p:last-child {
+  margin-bottom: 0;
 }
 
 /* 6. Stany :hover i :focus-visible */
@@ -525,6 +576,11 @@ input:focus-visible {
   }
 
   .catalog {
+    gap: var(--space-lg);
+  }
+
+  .steps {
+    grid-template-columns: repeat(3, 1fr);
     gap: var(--space-lg);
   }
 }

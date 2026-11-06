@@ -18,14 +18,14 @@
                 <ul class="catalog">
                     <?php foreach ($wines as $wine): ?>
                         <li>
-                            <article class="wine-card">
+                            <article class="card">
                                 <?php if (!empty($wine['award'])): ?>
-                                    <p class="wine-badge"><?= $e($wine['award']) ?></p>
+                                    <p class="card-badge"><?= $e($wine['award']) ?></p>
                                 <?php endif; ?>
                                 <h2><?= $e(trim($wine['name'] . ' ' . ($wine['vintage'] ?? ''))) ?></h2>
-                                <p class="wine-meta"><?= $e(implode(' • ', array_filter([$wine['type'] ?? null, $wine['grape'] ?? null, $wine['abv'] ?? null]))) ?></p>
-                                <p class="wine-notes"><?= $e($content->fill($wine['notes'])) ?></p>
-                                <p class="wine-price">
+                                <p class="card-meta"><?= $e(implode(' • ', array_filter([$wine['type'] ?? null, $wine['grape'] ?? null, $wine['abv'] ?? null]))) ?></p>
+                                <p class="card-text"><?= $e($content->fill($wine['notes'])) ?></p>
+                                <p class="card-price">
                                     <small><?= $t('wines.price_label') ?></small>
                                     <?= $e($wine['price']) ?>
                                 </p>

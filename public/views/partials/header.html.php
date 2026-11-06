@@ -5,6 +5,7 @@
             <ul>
                 <li><a href="/"<?= $activePage === 'home' ? ' aria-current="page"' : '' ?>><?= $t('nav.home') ?></a></li>
                 <li><a href="/wines"<?= $activePage === 'wines' ? ' aria-current="page"' : '' ?>><?= $t('nav.wines') ?></a></li>
+                <li><a href="/tastings"<?= $activePage === 'tastings' ? ' aria-current="page"' : '' ?>><?= $t('nav.tastings') ?></a></li>
                 <li><a href="/login"<?= $activePage === 'login' ? ' aria-current="page"' : '' ?>><?= $t('nav.login') ?></a></li>
             </ul>
         </nav>
