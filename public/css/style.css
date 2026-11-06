@@ -483,8 +483,57 @@ input[type="checkbox"] {
   max-width: 40rem;
 }
 
+.cta-box .actions {
+  justify-content: flex-start;
+}
+
 .cta-box p:last-child {
   margin-bottom: 0;
+}
+
+/* Podstrona „O winnicy": sekcje tekstowe, fakty w siatce, lista cech */
+.about-section {
+  margin-bottom: var(--space-xl);
+}
+
+.prose {
+  max-width: 44rem;
+}
+
+.facts {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(14rem, 1fr));
+  gap: var(--space-md);
+  margin: 0;
+}
+
+.facts .stat-card dd {
+  font-size: 1.25rem;
+  line-height: 1.4;
+}
+
+.feature-list {
+  display: grid;
+  gap: var(--space-sm);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.feature-list li {
+  padding-left: var(--space-lg);
+  position: relative;
+}
+
+.feature-list li::before {
+  content: "";
+  position: absolute;
+  left: var(--space-xs);
+  top: 0.7em;
+  width: 0.5rem;
+  height: 0.5rem;
+  background-color: var(--color-gold);
+  border-radius: 9999px;
 }
 
 /* 6. Stany :hover i :focus-visible */

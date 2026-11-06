@@ -24,6 +24,7 @@ return [
         'home' => 'Strona główna',
         'wines' => 'Nasze wina',
         'tastings' => 'Degustacje',
+        'about' => 'O winnicy',
         'login' => 'Zaloguj się',
     ],
 
@@ -182,6 +183,41 @@ return [
         'cta_title' => 'Zarezerwuj wizytę',
         'cta_text' => 'Rezerwacja wymaga konta gościa. Zaloguj się, aby wybrać termin i liczbę osób.',
         'cta' => 'Zaloguj się, aby zarezerwować degustację',
+    ],
+
+    'about' => [
+        'page_title' => 'O winnicy — {site.name}',
+        'eyebrow' => 'O posiadłości',
+        'title' => 'O winnicy {site.name}',
+        'intro' => '{site.name} to posiadłość winiarska w zachodniej części Toussaint — '
+            . 'miejsce, w którym spokój winnicy spotyka się z historią i dobrym stołem.',
+        'history_title' => 'Historia',
+        'history' => [
+            'Posiadłość przez lata niszczała, aż trafiła w ręce Geralta z Rivii, który otrzymał ją '
+            . 'w darze od księżnej Anny Henrietty razem z kluczem i aktem własności.',
+            'Dwór, ogród i piwnice zostały krok po kroku odnowione. Dziś {site.name} łączy '
+            . 'tradycyjne winiarstwo Toussaint z gościnnością: degustacjami, kolacjami przy długim stole '
+            . 'i opowieściami o ludziach, którzy tu mieszkali.',
+        ],
+        'facts_title' => 'W skrócie',
+        'facts' => [
+            ['label' => 'Położenie', 'value' => 'Zachodnie Toussaint'],
+            ['label' => 'Właściciel', 'value' => 'Geralt z Rivii'],
+            ['label' => 'Zarządca', 'value' => 'Barnabas-Basil Foulty, majordomus'],
+            ['label' => 'Flagowe wino', 'value' => 'Sepremento (szczep Carvanere)'],
+        ],
+        'estate_title' => 'Posiadłość dzisiaj',
+        'estate_intro' => 'Odnowiona posiadłość ma wszystko, czego potrzeba na wizytę i na codzienną pracę:',
+        'features' => [
+            'Odnowiony dwór z pokojem gościnnym na wieczorne kolacje',
+            'Warsztat z kowadłem i szlifierką oraz stojaki na broń i zbroje',
+            'Ogród, w którym rosną rzadkie zioła',
+            'Stajnia dla koni gości i gospodarzy',
+            'Piwnice i ukryta pracownia pod dworem',
+        ],
+        'cta_title' => 'Odwiedź nas',
+        'cta_wines' => 'Zobacz nasze wina',
+        'cta_tastings' => 'Zobacz degustacje',
     ],
 
     'login' => [
