@@ -2,15 +2,21 @@
 /* 1. Zmienne CSS (tokeny projektu) */
 :root {
   /* kolory */
-  --color-primary: #6b1d2f;          /* głęboka czerwień wina */
+  --color-primary: #ffffff;            /* nagłówki i linki na bordowym tle (na białych powierzchniach: bordo) */
   --color-primary-deep: #4a1220;     /* stan wciśnięty, ciemne tła */
-  --color-primary-hover: #8a253d;    /* hover i akcenty */
+  --color-wine: #6b1d2f;             /* stałe wypełnienia (hero, przyciski): bez zmian w ciemnym motywie */
+  --color-wine-hover: #8a253d;
+  --color-button: var(--color-primary-deep);
+  --color-primary-hover: #ffffff;    /* hover i akcenty */
   --color-gold: #d4af37;             /* szampański złoty */
   --color-gold-light: #e5c358;
-  --color-canvas: #fdfbf7;           /* tło strony */
-  --color-surface: #f5f2eb;          /* podniesione powierzchnie */
-  --color-text: #1b1c1a;
-  --color-muted: #475569;
+  /* Motyw jasny: tło strony to bordo z hero, a nagłówek, karty i stopka są białe.
+     Poniższe kolory dotyczą treści na bordowym tle; białe powierzchnie dostają
+     ciemne kolory z bloku „Białe powierzchnie” niżej. */
+  --color-canvas: #6b1d2f;           /* tło strony: bordo jak w hero */
+  --color-surface: #ffffff;          /* nagłówek, karty, stopka: biel */
+  --color-text: #ffffff;
+  --color-muted: #ececec;
   --color-border: rgba(212, 175, 55, 0.25);
   --color-gold-trim: rgba(212, 175, 55, 0.4);
   --color-on-primary: #ffffff;
@@ -34,20 +40,31 @@
   --radius-lg: 0.5rem;
 
   /* cień (ambient) */
-  --shadow-ambient: 0 12px 32px -4px rgba(74, 18, 32, 0.08);
+  --shadow-ambient: 0 12px 32px -4px rgba(0, 0, 0, 0.25);
+}
+
+/* Białe powierzchnie motywu jasnego: tu wracają ciemne kolory tekstu i bordowe akcenty */
+:root:not([data-theme="dark"]) :is(.site-header, .site-footer, .card, .stat-card, .auth-card, .cta-box) {
+  --color-canvas: #fbf6f3;           /* tło pól formularza na białej karcie */
+  --color-text: #241015;
+  --color-muted: #5e4b50;
+  --color-primary: #6b1d2f;          /* głęboka czerwień wina */
+  --color-primary-hover: #8a253d;
+  color: var(--color-text);          /* tekst odziedziczony z body byłby jasny */
 }
 
 /* Ciemny motyw: nadpisuje tokeny kolorów (atrybut ustawia public/js/theme.js) */
 :root[data-theme="dark"] {
   color-scheme: dark;
-  --color-primary: #e8a0b0;          /* jaśniejszy burgund dla kontrastu na ciemnym tle */
+  --color-primary: #dfb9ac;          /* ciepły, jasny odcień (mniej różowy) dla kontrastu na ciemnym tle */
   --color-primary-deep: #4a1220;
-  --color-primary-hover: #f0b8c5;
-  --color-canvas: #161312;
-  --color-surface: #221d1b;
+  --color-primary-hover: #edd0c5;
+  --color-canvas: #1f0a0f;           /* tło strony: czerń zmieszana z bordo */
+  --color-surface: #2e0e16;          /* nagłówek, karty, stopka: odrobinę więcej bordo */
   --color-text: #f1ece4;
-  --color-muted: #b4aca2;
-  --shadow-ambient: 0 12px 32px -4px rgba(0, 0, 0, 0.4);
+  --color-muted: #c9b8b8;
+  --color-button: var(--color-wine); /* przycisk jaśniejszy od kart, żeby był widoczny */
+  --shadow-ambient: 0 12px 32px -4px rgba(0, 0, 0, 0.5);
 }
 
 /* 2. Box model: szerokość obejmuje padding i border */
@@ -144,17 +161,37 @@ nav ul {
 }
 
 .theme-toggle {
-  padding: var(--space-xs) var(--space-md);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.75rem;
+  height: 2.75rem;
+  margin: 0;
+  padding: 0;
   color: var(--color-primary);
   background-color: transparent;
   border: 1px solid var(--color-gold-trim);
-  border-radius: var(--radius);
-  font: inherit;
-  font-size: 0.75rem;
-  font-weight: 600;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
+  border-radius: 9999px;
   cursor: pointer;
+}
+
+/* ikona aktualnego trybu: system (domyślnie), słońce (jasny), księżyc (ciemny) */
+.theme-toggle svg {
+  display: none;
+  width: 1.25rem;
+  height: 1.25rem;
+  fill: currentColor;
+}
+
+.theme-toggle .icon-system,
+html[data-theme-mode="light"] .theme-toggle .icon-sun,
+html[data-theme-mode="dark"] .theme-toggle .icon-moon {
+  display: block;
+}
+
+html[data-theme-mode="light"] .theme-toggle .icon-system,
+html[data-theme-mode="dark"] .theme-toggle .icon-system {
+  display: none;
 }
 
 .theme-toggle:hover {
@@ -206,7 +243,7 @@ nav a[aria-current="page"] {
   background: linear-gradient(
     180deg,
     var(--color-primary-deep) 0%,
-    var(--color-primary) 70%,
+    var(--color-wine) 70%,
     var(--color-canvas) 100%
   );
 }
@@ -238,7 +275,7 @@ nav a[aria-current="page"] {
   display: inline-block;
   padding: var(--space-md) var(--space-lg);
   color: var(--color-on-primary);
-  background-color: var(--color-primary-deep);
+  background-color: var(--color-button);
   border: 1px solid var(--color-gold-trim);
   border-radius: var(--radius);
   font-size: 0.75rem;
@@ -587,7 +624,7 @@ nav a:hover {
 
 .button:hover {
   color: var(--color-on-primary);
-  background-color: var(--color-primary-hover);
+  background-color: var(--color-wine-hover);
   box-shadow: 0 0 12px var(--color-gold-trim);
 }
 

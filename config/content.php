@@ -30,8 +30,10 @@ return [
 
     'theme' => [
         'toggle' => 'Motyw',
-        'to_dark' => 'Włącz ciemny motyw',
-        'to_light' => 'Włącz jasny motyw',
+        'mode_system' => 'systemowy',
+        'mode_light' => 'jasny',
+        'mode_dark' => 'ciemny',
+        'switch_to' => 'Zmień motyw na',
     ],
 
     'home' => [

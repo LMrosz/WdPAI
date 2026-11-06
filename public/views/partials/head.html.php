@@ -7,10 +7,12 @@
         (function () {
             var theme = null;
             try { theme = localStorage.getItem('theme'); } catch (error) {}
-            if (theme !== 'light' && theme !== 'dark') {
+            var hasSavedTheme = theme === 'light' || theme === 'dark';
+            if (!hasSavedTheme) {
                 theme = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
             }
             document.documentElement.dataset.theme = theme;
+            document.documentElement.dataset.themeMode = hasSavedTheme ? theme : 'system';
         })();
     </script>
     <link rel="preconnect" href="https://fonts.googleapis.com">
