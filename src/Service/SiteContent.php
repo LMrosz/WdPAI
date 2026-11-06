@@ -56,10 +56,16 @@ final class SiteContent
     {
         $value = $this->get($key);
 
-        if (!is_string($value)) {
-            return $key;
-        }
+        return is_string($value) ? $this->fill($value, $replace) : $key;
+    }
 
+    /**
+     * Podstawia znaczniki {klucz} w dowolnym tekście (np. w opisie pozycji z listy).
+     *
+     * @param array<string, scalar> $replace
+     */
+    public function fill(string $template, array $replace = []): string
+    {
         return (string) preg_replace_callback(
             '/\{([a-z0-9_.]+)\}/i',
             function (array $match) use ($replace): string {
@@ -73,7 +79,7 @@ final class SiteContent
 
                 return is_string($found) ? $found : $match[0];
             },
-            $value,
+            $template,
         );
     }
 }

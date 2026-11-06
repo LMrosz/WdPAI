@@ -5,6 +5,7 @@ declare(strict_types=1);
 use App\Controller\DefaultController;
 use App\Controller\ProjectController;
 use App\Controller\SecurityController;
+use App\Controller\WineController;
 use App\Routing;
 
 require_once dirname(__DIR__) . '/vendor/autoload.php';
@@ -13,6 +14,7 @@ $routing = new Routing();
 
 $routing->get('/projects', ProjectController::class, 'index');
 $routing->get('/projects/{id}', ProjectController::class, 'show');
+$routing->get('/wines', WineController::class, 'index');
 $routing->get('/login', SecurityController::class, 'login');
 $routing->post('/login', SecurityController::class, 'authenticate');
 $routing->get('/', DefaultController::class, 'index');

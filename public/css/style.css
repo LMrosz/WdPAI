@@ -182,12 +182,18 @@ nav a[aria-current="page"] {
   max-width: 40rem;
 }
 
-.hero .eyebrow {
-  color: var(--color-gold-light);
+/* label-sm nad nagłówkiem; kolor zależy od tła */
+.eyebrow {
+  margin-bottom: var(--space-sm);
+  color: var(--color-primary-hover);
   font-size: 0.75rem;
   font-weight: 600;
   letter-spacing: 0.08em;
   text-transform: uppercase;
+}
+
+.hero .eyebrow {
+  color: var(--color-gold-light);
 }
 
 /* Główny przycisk: ciemne wino, biały tekst, złote obramowanie */
@@ -345,6 +351,91 @@ input[type="checkbox"] {
   text-align: center;
 }
 
+/* Katalog win: Grid z kartami, liczba kolumn dopasowuje się do szerokości */
+.catalog-page {
+  padding-block: var(--space-xl);
+}
+
+.catalog-header {
+  max-width: 40rem;
+  margin-bottom: var(--space-xl);
+}
+
+.catalog {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(16rem, 1fr));
+  gap: var(--space-md);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.wine-card {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+  height: 100%;
+  padding: var(--space-lg);
+  background-color: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-ambient);
+}
+
+.wine-card h2 {
+  margin: 0;
+  font-size: 1.5rem;
+  line-height: 1.3333;
+}
+
+.wine-card p {
+  margin: 0;
+}
+
+/* odznaka nagrody: pełne zaokrąglenie (kapsuła) */
+.wine-badge {
+  align-self: flex-start;
+  padding: var(--space-xs) var(--space-sm);
+  border: 1px solid var(--color-gold-trim);
+  border-radius: 9999px;
+  font-size: 0.6875rem;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.wine-meta {
+  color: var(--color-muted);
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.wine-notes {
+  flex: 1;
+}
+
+.wine-price {
+  display: flex;
+  flex-direction: column;
+  padding-top: var(--space-md);
+  border-top: 1px solid var(--color-border);
+  color: var(--color-primary);
+  font-family: var(--font-serif);
+  font-size: 1.5rem;
+  font-weight: 600;
+}
+
+.wine-price small {
+  color: var(--color-muted);
+  font-family: var(--font-sans);
+  font-size: 0.6875rem;
+  font-weight: 500;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
 /* 6. Stany :hover i :focus-visible */
 
 /* :hover — wskazówka dla myszy */
@@ -427,5 +518,13 @@ input:focus-visible {
 
   .auth-card {
     padding: var(--space-xl);
+  }
+
+  .catalog-page {
+    padding-block: var(--space-2xl);
+  }
+
+  .catalog {
+    gap: var(--space-lg);
   }
 }
