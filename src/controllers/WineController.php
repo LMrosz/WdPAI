@@ -13,6 +13,6 @@ final class WineController extends AppController
             'pageTitle' => $this->text('wines.page_title'),
             'activePage' => 'wines',
             'wines' => $this->content()->get('wines.items') ?? [],
-        ]);
+        ], true);
     }
 }

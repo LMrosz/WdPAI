@@ -10,5 +10,9 @@
                 <li><a href="/login"<?= $activePage === 'login' ? ' aria-current="page"' : '' ?>><?= $t('nav.login') ?></a></li>
             </ul>
         </nav>
+        <button type="button" class="theme-toggle" aria-pressed="false"
+            aria-label="<?= $t('theme.to_dark') ?>"
+            data-label-to-dark="<?= $t('theme.to_dark') ?>"
+            data-label-to-light="<?= $t('theme.to_light') ?>"><?= $t('theme.toggle') ?></button>
     </div>
 </header>

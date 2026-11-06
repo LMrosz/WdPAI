@@ -14,6 +14,6 @@ final class TastingController extends AppController
             'activePage' => 'tastings',
             'offers' => $this->content()->get('tastings.offers') ?? [],
             'steps' => $this->content()->get('tastings.steps') ?? [],
-        ]);
+        ], true);
     }
 }

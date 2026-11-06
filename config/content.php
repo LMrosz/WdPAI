@@ -28,6 +28,12 @@ return [
         'login' => 'Zaloguj się',
     ],
 
+    'theme' => [
+        'toggle' => 'Motyw',
+        'to_dark' => 'Włącz ciemny motyw',
+        'to_light' => 'Włącz jasny motyw',
+    ],
+
     'home' => [
         'page_title' => '{site.name} — strona główna',
         'eyebrow' => 'Toussaint • posiadłość winiarska',

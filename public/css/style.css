@@ -37,6 +37,19 @@
   --shadow-ambient: 0 12px 32px -4px rgba(74, 18, 32, 0.08);
 }
 
+/* Ciemny motyw: nadpisuje tokeny kolorów (atrybut ustawia public/js/theme.js) */
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --color-primary: #e8a0b0;          /* jaśniejszy burgund dla kontrastu na ciemnym tle */
+  --color-primary-deep: #4a1220;
+  --color-primary-hover: #f0b8c5;
+  --color-canvas: #161312;
+  --color-surface: #221d1b;
+  --color-text: #f1ece4;
+  --color-muted: #b4aca2;
+  --shadow-ambient: 0 12px 32px -4px rgba(0, 0, 0, 0.4);
+}
+
 /* 2. Box model: szerokość obejmuje padding i border */
 *,
 *::before,
@@ -128,6 +141,30 @@ nav ul {
 
 .brand {
   margin: 0;
+}
+
+.theme-toggle {
+  padding: var(--space-xs) var(--space-md);
+  color: var(--color-primary);
+  background-color: transparent;
+  border: 1px solid var(--color-gold-trim);
+  border-radius: var(--radius);
+  font: inherit;
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  cursor: pointer;
+}
+
+.theme-toggle:hover {
+  background-color: var(--color-canvas);
+  border-color: var(--color-gold);
+}
+
+.theme-toggle:focus-visible {
+  outline: 3px solid var(--color-gold);
+  outline-offset: 2px;
 }
 
 .brand a {

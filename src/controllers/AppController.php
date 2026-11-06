@@ -10,9 +10,14 @@ abstract class AppController
 {
     private static ?SiteContent $content = null;
 
-    protected function render(string $template, array $variables = []): void
+    /**
+     * Renderuje widok. Przy $withLayout widok zawiera tylko <main>, a resztę strony
+     * (head, nagłówek, stopkę, skrypty) dokłada views/layout.html.php.
+     */
+    protected function render(string $template, array $variables = [], bool $withLayout = false): void
     {
-        $templatePath = dirname(__DIR__, 2) . '/public/views/' . $template . '.html.php';
+        $viewsPath = dirname(__DIR__, 2) . '/public/views/';
+        $templatePath = $viewsPath . $template . '.html.php';
 
         if (!is_file($templatePath)) {
             throw new \RuntimeException('View not found: ' . $template);
@@ -28,7 +33,18 @@ abstract class AppController
         ];
 
         extract($variables, EXTR_SKIP);
+
+        if (!$withLayout) {
+            require $templatePath;
+
+            return;
+        }
+
+        ob_start();
         require $templatePath;
+        $main = (string) ob_get_clean();
+
+        require $viewsPath . 'layout.html.php';
     }
 
     /** Teksty i dane marki winnicy (config/content.php). */

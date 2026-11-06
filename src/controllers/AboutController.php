@@ -15,6 +15,6 @@ final class AboutController extends AppController
             'history' => $this->content()->get('about.history') ?? [],
             'facts' => $this->content()->get('about.facts') ?? [],
             'features' => $this->content()->get('about.features') ?? [],
-        ]);
+        ], true);
     }
 }

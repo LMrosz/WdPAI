@@ -13,7 +13,7 @@ final class SecurityController extends AppController
             'pageTitle' => $this->text('login.page_title'),
             'activePage' => 'login',
             'formAction' => '/login',
-        ]);
+        ], true);
     }
 
     /**
