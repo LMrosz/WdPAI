@@ -12,7 +12,8 @@ VinoKeep to aplikacja webowa dla winnic: prezentuje ofertę (wina, degustacje, h
 | O winnicy (`/about`) | Historia, fakty i cechy posiadłości | gotowe |
 | Logowanie (`/login`) | Formularz, walidacja pustych pól (422), przekierowanie na `/` po wysłaniu | tymczasowo, bez uwierzytelniania |
 | Teksty serwisu | Wszystkie napisy i nazwa marki w `config/content.php` | gotowe |
-| Tryb jasny/ciemny, audyt WCAG | Motyw kolorystyczny i dostępność | planowane w przyszłości |
+| Motyw jasny/ciemny | Przełącznik w nagłówku: tryb systemowy, jasny lub ciemny, wybór zapamiętany w przeglądarce | gotowe |
+| Dostępność (WCAG) | Semantyczne znaczniki, widoczny fokus, kontrast sprawdzony w obu motywach narzędziem axe | częściowo, pełny audyt planowany w przyszłości |
 | Formularze, baza PostgreSQL, role użytkowników, upload, panel admina | Prawdziwe logowanie, rezerwacje, edycja treści | planowane w przyszłości |
 
 ## Tech stack
@@ -22,7 +23,7 @@ VinoKeep to aplikacja webowa dla winnic: prezentuje ofertę (wina, degustacje, h
 | Backend | PHP 8.3 (własny MVC, autoloading PSR-4 przez Composer) |
 | Serwer HTTP | Nginx + PHP-FPM |
 | Baza danych | PostgreSQL (kontener gotowy, jeszcze nieużywany przez aplikację) |
-| Frontend | HTML (widoki PHP), jeden plik CSS: zmienne CSS, Flexbox, Grid, mobile-first |
+| Frontend | HTML (widoki PHP), jeden plik CSS (zmienne CSS, Flexbox, Grid, mobile-first), JavaScript bez bibliotek (przełącznik motywu) |
 | Konteneryzacja | Docker Compose |
 | Narzędzia | Mailpit (podgląd maili), pgAdmin (zarządzanie bazą) |
 
@@ -51,8 +52,10 @@ my-app/
 ├── docker/                  # Dockerfile'e i konfiguracja nginx, php, db
 ├── public/
 │   ├── index.php            # front controller, definicje tras
-│   ├── css/style.css        # design system „Terroir & Heritage Luxe”
-│   └── views/               # widoki *.html.php
+│   ├── css/style.css        # design system „Terroir & Heritage Luxe”, tokeny obu motywów
+│   ├── js/theme.js          # przełącznik motywu jasny/ciemny/systemowy
+│   └── views/               # widoki *.html.php (sam element <main>)
+│       ├── layout.html.php  # wspólny szkielet strony, składa head, nagłówek, treść i stopkę
 │       └── partials/        # wspólne head, header, footer
 ├── src/
 │   ├── Routing.php          # router
@@ -64,7 +67,16 @@ my-app/
 └── AGENTS.MD                # zasady pracy z asystentem AI
 ```
 
-Przepływ żądania: nginx → `public/index.php` → `Routing` → kontroler → widok. Kontroler przekazuje do widoku dane, a teksty pobiera przez `$t('klucz')` z `config/content.php`.
+Przepływ żądania: nginx → `public/index.php` → `Routing` → kontroler → widok. Kontroler przekazuje do widoku dane, a teksty pobiera przez `$t('klucz')` z `config/content.php`. Widok zwraca tylko `<main>`, a resztę strony dokłada `layout.html.php`.
+
+## Motyw jasny i ciemny
+
+Wygląd obu motywów opisują zmienne CSS w `public/css/style.css`: motyw jasny to `:root`, a ciemny `html[data-theme="dark"]` z tymi samymi nazwami zmiennych. Komponenty korzystają wyłącznie ze zmiennych, więc nie ma osobnego arkusza dla ciemnego motywu.
+
+- Mały skrypt w `partials/head.html.php` ustawia motyw przed załadowaniem CSS, żeby strona nie migała.
+- Przycisk w nagłówku przełącza kolejno: systemowy (ikona monitora), jasny (słońce), ciemny (księżyc).
+- Wybór jasny/ciemny jest zapisany w `localStorage` pod kluczem `theme`. W trybie systemowym nie ma zapisu i strona podąża za ustawieniem systemu.
+- Zmiana motywu w jednej karcie przeglądarki od razu przenosi się do pozostałych.
 
 ## Trasy
 
