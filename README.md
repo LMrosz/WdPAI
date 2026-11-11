@@ -56,12 +56,15 @@ my-app/
 │   ├── js/theme.js          # przełącznik motywu jasny/ciemny/systemowy
 │   └── views/               # widoki *.html.php (sam element <main>)
 │       ├── layout.html.php  # wspólny szkielet strony, składa head, nagłówek, treść i stopkę
+│       ├── error.html.php   # wspólny widok błędów 400, 404 i 500
 │       └── partials/        # wspólne head, header, footer
 ├── src/
 │   ├── Routing.php          # router
+│   ├── Exception/           # HttpException i wyjątki 400 oraz 404
 │   ├── Service/
-│   │   └── SiteContent.php  # odczyt tekstów z config/content.php
-│   └── controllers/         # kontrolery (AppController jako baza)
+│   │   ├── SiteContent.php  # odczyt tekstów z config/content.php
+│   │   └── Validator.php    # walidacja danych z formularzy po stronie serwera
+│   └── controllers/         # kontrolery (AppController jako baza, ErrorController dla stron błędów)
 ├── docker-compose.yaml
 ├── composer.json
 └── AGENTS.MD                # zasady pracy z asystentem AI
@@ -89,7 +92,13 @@ Wygląd obu motywów opisują zmienne CSS w `public/css/style.css`: motyw jasny 
 | GET | `/login` | Formularz logowania |
 | POST | `/login` | Obsługa formularza (na razie bez uwierzytelniania) |
 
-Nieznana ścieżka zwraca stronę 404.
+## Obsługa błędów
+
+Router rzuca `NotFoundException`, gdy żadna trasa nie pasuje, a kontroler może rzucić `BadRequestException`, gdy żądanie jest błędne (np. zły format identyfikatora). Front controller łapie `HttpException` i pokazuje stronę błędu z odpowiednim kodem (400 albo 404) przez `ErrorController`. Każdy inny nieoczekiwany błąd kończy się ogólną stroną 500, a szczegóły trafiają tylko do logu serwera, bez stack trace dla użytkownika. Teksty błędów są w `config/content.php` (`errors.*`).
+
+## Walidacja formularzy
+
+`App\Service\Validator` sprawdza dane po stronie serwera łańcuchem reguł (`required`, `email`, `minLength`, `maxLength`, `matches`) i dla każdego pola zapamiętuje pierwszy błąd. Komunikaty są w `config/content.php` (`validation.*`), więc walidator nie zawiera napisów.
 
 ## Zmiana tekstów i marki
 

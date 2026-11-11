@@ -16,7 +16,8 @@ Aktualnie aplikacja obsługuje:
 
 - stronę główną pod `/` (`DefaultController::index`) — hero z opisem posiadłości i kartami statystyk, dane na razie zapisane na sztywno w kontrolerze,
 - formularz logowania pod `/login` (`SecurityController::login`) — tylko widok, bez trasy POST i bez uwierzytelniania,
-- odpowiedź 404 (`DefaultController::notFound`) dla nieznanych tras.
+- strony błędów 400, 404 i 500 (`ErrorController::show`, widok `error.html.php`); router rzuca `NotFoundException`, a front controller zamienia `HttpException` na stronę błędu,
+- walidację formularzy po stronie serwera (`App\Service\Validator`, komunikaty w `config/content.php` pod kluczem `validation`).
 
 Nie ma jeszcze logowania, sesji, rezerwacji, oferty win ani warstwy Model — nie opisuj ich jako istniejących.
 
@@ -43,9 +44,11 @@ Nie ma jeszcze logowania, sesji, rezerwacji, oferty win ani warstwy Model — ni
 │   └── views/                 # szablony HTML (*.html.php)
 │       ├── home.html.php      # strona główna
 │       ├── login.html.php     # logowanie
-│       └── not-found.html.php # 404
+│       └── error.html.php     # błędy 400, 404, 500
 ├── src/
-│   ├── controllers/           # App\Controller\* (Default, Security, AppController)
+│   ├── controllers/           # App\Controller\* (AppController, Default, Security, Error itd.)
+│   ├── Exception/             # App\Exception\* — HttpException, BadRequestException, NotFoundException
+│   ├── Service/               # App\Service\* — SiteContent, Validator
 │   └── Routing.php            # App\Routing — rejestracja i obsługa tras
 ├── AGENTS.MD                  # ten plik
 ├── README.md                  # opis projektu dla ludzi
