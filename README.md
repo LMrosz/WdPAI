@@ -106,7 +106,7 @@ Nazwa winnicy, hasło, nazwa platformy, nawigacja, opisy i lista win są w `conf
 
 ## Zasady developmentu
 
-- Branch dla każdej funkcji.
+- Osobny branch dla każdego większego zakresu prac / nowej funkcjonalności, a w nim małe, logiczne commity.
 - Małe, logiczne commity (format `feat:`, `fix:`, `docs:`, `chore:`).
 - Mobile-first, jeden breakpoint desktopowy (`min-width: 64rem`).
 - Sekrety wyłącznie w `.env`.
