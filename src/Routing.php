@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App;
 
 use App\Controller\AppController;
+use App\Exception\NotFoundException;
 
 final class Routing
 {
@@ -57,7 +58,8 @@ final class Routing
         return '~^' . implode('/', $parts) . '$~';
     }
 
-    public function dispatch(string $method, string $uri): bool
+    /** Wywołuje akcję pasującej trasy; gdy żadna nie pasuje, rzuca NotFoundException (404). */
+    public function dispatch(string $method, string $uri): void
     {
         $path = parse_url($uri, PHP_URL_PATH) ?: '/';
 
@@ -91,9 +93,9 @@ final class Routing
 
             $controller->{$route['action']}(...$parameters);
 
-            return true;
+            return;
         }
 
-        return false;
+        throw new NotFoundException('No route for ' . $method . ' ' . $path);
     }
 }

@@ -245,11 +245,31 @@ return [
         'powered' => 'Platforma {site.platform}.',
     ],
 
+    'validation' => [
+        'required' => 'To pole jest wymagane.',
+        'email' => 'Podaj poprawny adres e-mail.',
+        'min_length' => 'Wpisz co najmniej {min} znaków.',
+        'max_length' => 'Wpisz najwyżej {max} znaków.',
+        'matches' => 'Wartości w obu polach muszą być takie same.',
+    ],
+
     'errors' => [
+        'bad_request' => [
+            'page_title' => 'Nieprawidłowe żądanie — {site.name}',
+            'title' => '400',
+            'text' => 'Nie rozumiemy tego żądania. Sprawdź adres i spróbuj ponownie.',
+            'back' => 'Wróć na stronę główną',
+        ],
         'not_found' => [
             'page_title' => 'Nie znaleziono strony — {site.name}',
             'title' => '404',
             'text' => 'Taka strona nie istnieje.',
+            'back' => 'Wróć na stronę główną',
+        ],
+        'server_error' => [
+            'page_title' => 'Coś poszło nie tak — {site.name}',
+            'title' => '500',
+            'text' => 'Wystąpił błąd po naszej stronie. Spróbuj ponownie za chwilę.',
             'back' => 'Wróć na stronę główną',
         ],
     ],
