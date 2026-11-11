@@ -88,7 +88,6 @@ Wygląd obu motywów opisują zmienne CSS w `public/css/style.css`: motyw jasny 
 | GET | `/about` | O winnicy |
 | GET | `/login` | Formularz logowania |
 | POST | `/login` | Obsługa formularza (na razie bez uwierzytelniania) |
-| GET | `/projects`, `/projects/{id}` | Przykładowe trasy z szablonu |
 
 Nieznana ścieżka zwraca stronę 404.
 

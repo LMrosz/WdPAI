@@ -16,7 +16,6 @@ Aktualnie aplikacja obsługuje:
 
 - stronę główną pod `/` (`DefaultController::index`) — hero z opisem posiadłości i kartami statystyk, dane na razie zapisane na sztywno w kontrolerze,
 - formularz logowania pod `/login` (`SecurityController::login`) — tylko widok, bez trasy POST i bez uwierzytelniania,
-- listę projektów pod `/projects` i szczegóły pod `/projects/{id}` (`ProjectController`) — przykładowe trasy z ćwiczeń, z minimalnymi widokami,
 - odpowiedź 404 (`DefaultController::notFound`) dla nieznanych tras.
 
 Nie ma jeszcze logowania, sesji, rezerwacji, oferty win ani warstwy Model — nie opisuj ich jako istniejących.
@@ -44,11 +43,9 @@ Nie ma jeszcze logowania, sesji, rezerwacji, oferty win ani warstwy Model — ni
 │   └── views/                 # szablony HTML (*.html.php)
 │       ├── home.html.php      # strona główna
 │       ├── login.html.php     # logowanie
-│       ├── not-found.html.php # 404
-│       ├── projects.html.php  # lista projektów (ćwiczenie)
-│       └── project.html.php   # szczegóły projektu (ćwiczenie)
+│       └── not-found.html.php # 404
 ├── src/
-│   ├── controllers/           # App\Controller\* (Default, Security, Project, AppController)
+│   ├── controllers/           # App\Controller\* (Default, Security, AppController)
 │   └── Routing.php            # App\Routing — rejestracja i obsługa tras
 ├── AGENTS.MD                  # ten plik
 ├── README.md                  # opis projektu dla ludzi
@@ -98,7 +95,7 @@ $routing->post('/example', ExampleController::class, 'store');
 
 `src/Routing.php` (`App\Routing`) łączy metodę HTTP i ścieżkę URL z publiczną metodą kontrolera. Parametry zapisane jako `{name}` są obecnie dopasowywane tylko do cyfr, konwertowane na `int` i przekazywane do akcji kontrolera przez nazwane argumenty.
 
-Przykład: `/projects/{id}` wywołuje `ProjectController::show(int $id)`.
+Przykład: trasa `/wines/{id}` wywołałaby `WineController::show(int $id)` (obecnie w projekcie nie ma tras z parametrem).
 
 Router obsługuje obecnie metody GET i POST. Nie dodawaj logiki biznesowej do routera.
 
@@ -209,7 +206,7 @@ W projekcie nie ma obecnie skonfigurowanego zestawu testów automatycznych ani n
 
 - uruchom `php -l` dla każdego zmienionego pliku PHP,
 - sprawdź `composer dump-autoload`, jeżeli zmieniałeś klasy lub namespace,
-- uruchom kontenery i sprawdź zmienione endpointy (`/`, `/login`, `/projects`, `/projects/1`, nieistniejąca trasa → 404),
+- uruchom kontenery i sprawdź zmienione endpointy (`/`, `/wines`, `/tastings`, `/about`, `/login`, nieistniejąca trasa → 404),
 - przy zmianach CSS sprawdź widok mobilny (np. 375 px) i desktopowy (≥ 1024 px) pod kątem braku poziomego przewijania oraz stany `:hover` i `:focus-visible` (nawigacja klawiszem Tab),
 - upewnij się, że logi `docker compose logs` nie zawierają nowych błędów,
 - nie twierdź, że testy przeszły, jeżeli ich faktycznie nie uruchomiono.
