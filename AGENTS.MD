@@ -169,6 +169,7 @@ Cały wygląd mieści się w jednym arkuszu `public/css/style.css`, zgodnym z sy
 
 Typowy porządek prac:
 
+0. Zanim zaczniesz, upewnij się, że praca idzie na osobnej gałęzi tej funkcji, a nie na `main` (zob. „Git i współpraca").
 1. Dodaj trasę w `public/index.php`.
 2. Dodaj albo rozszerz kontroler w `src/controllers/`.
 3. Dodaj model, repozytorium lub serwis, jeśli funkcja zawiera logikę biznesową albo dostęp do danych.
@@ -214,6 +215,8 @@ W projekcie nie ma obecnie skonfigurowanego zestawu testów automatycznych ani n
 ## Git i współpraca
 
 - Praca jest zapisywana w małych, logicznych commitach w stylu Conventional Commits, np. `feat: add hover and focus-visible states`, `chore: ...`, `docs: ...`.
+- **Każda nowa funkcjonalność powstaje na osobnej gałęzi.** Nie pracuj bezpośrednio na `main`. Nazwa gałęzi ma prefiks zgodny z typem zmiany i krótki opis małymi literami przez myślniki, np. `feat/register-form`, `feat/routing-wine-id`, `fix/login-validation`, `docs/readme-erd`, `chore/xdebug`. Gałąź obejmuje jedną funkcję lub jeden krok zadania; niezwiązane poprawki idą na osobną gałąź. Po zakończeniu i sprawdzeniu funkcji gałąź jest scalana do `main` (merge lub Pull Request), a `main` ma zawsze działającą wersję.
+- Przed rozpoczęciem funkcji agent sprawdza `git branch --show-current`. Jeżeli aktualną gałęzią jest `main`, przed edycją podaje użytkownikowi polecenie `git switch -c <prefiks>/<opis>` i nie zaczyna pracy, dopóki gałąź nie istnieje. Gałęzie tworzy i scala użytkownik, tak samo jak commity.
 - **Commity i push wykonuje użytkownik.** Agent nie wykonuje `git commit` ani `git push`; po zakończeniu kroku podaje, które pliki dodać (`git add`) i proponuje tytuł commitu.
 - Nie wysyłaj zmian na GitHub bez wyraźnej prośby, jeśli zostaniesz o to poproszony nazywaj commity w następujący sposób:
 
