@@ -10,7 +10,8 @@ VinoKeep to aplikacja webowa dla winnic: prezentuje ofertę (wina, degustacje, h
 | Nasze wina (`/wines`) | Katalog win w siatce kart, filtr rodzaju (`?type=`) i rozbudowana strona szczegółów wina (`/wines/{id}`: opis, notatki degustacyjne, potrawy, temperatura podawania, leżakowanie, karta z ceną i sekcja „Zobacz także”) | gotowe (dane z pliku, bez bazy) |
 | Degustacje (`/tastings`) | Oferty degustacji i kroki rezerwacji | gotowe (bez rezerwacji) |
 | O winnicy (`/about`) | Historia, fakty i cechy posiadłości | gotowe |
-| Logowanie (`/login`) | Formularz, walidacja pustych pól (422), przekierowanie na `/` po wysłaniu | tymczasowo, bez uwierzytelniania |
+| Logowanie (`/login`) | Formularz z walidacją po stronie serwera (błędy przy polach, kod 422, wpisany e-mail zostaje), przekierowanie na `/` po poprawnym wysłaniu | tymczasowo, bez uwierzytelniania |
+| Rejestracja (`/register`) | Formularz z walidacją e-maila i hasła (długość, litera, cyfra, znak specjalny, powtórzenie), przekierowanie na `/login` po poprawnym wysłaniu | tymczasowo, konto nie jest jeszcze zapisywane |
 | Teksty serwisu | Wszystkie napisy i nazwa marki w `config/content.php` | gotowe |
 | Motyw jasny/ciemny | Przełącznik w nagłówku: tryb systemowy, jasny lub ciemny, wybór zapamiętany w przeglądarce | gotowe |
 | Dostępność (WCAG) | Semantyczne znaczniki, widoczny fokus, kontrast sprawdzony w obu motywach narzędziem axe | częściowo, pełny audyt planowany w przyszłości |
@@ -93,7 +94,9 @@ Wygląd obu motywów opisują zmienne CSS w `public/css/style.css`: motyw jasny 
 | GET | `/tastings` | Degustacje |
 | GET | `/about` | O winnicy |
 | GET | `/login` | Formularz logowania |
-| POST | `/login` | Obsługa formularza (na razie bez uwierzytelniania) |
+| POST | `/login` | Obsługa formularza: błędy wracają do formularza (422), poprawne dane przekierowują na `/` (na razie bez uwierzytelniania) |
+| GET | `/register` | Formularz rejestracji |
+| POST | `/register` | Obsługa formularza: błędy wracają do formularza (422), poprawne dane przekierowują na `/login?registered=1` (na razie bez zapisu konta) |
 
 ## Parametry w adresie
 
@@ -107,7 +110,17 @@ Router rzuca `NotFoundException`, gdy żadna trasa nie pasuje, a kontroler może
 
 ## Walidacja formularzy
 
-`App\Service\Validator` sprawdza dane po stronie serwera łańcuchem reguł (`required`, `email`, `minLength`, `maxLength`, `matches`) i dla każdego pola zapamiętuje pierwszy błąd. Komunikaty są w `config/content.php` (`validation.*`), więc walidator nie zawiera napisów.
+`App\Service\Validator` sprawdza dane po stronie serwera łańcuchem reguł (`required`, `email`, `minLength`, `maxLength`, `matches`, `letterAndDigit`, `specialCharacter`) i dla każdego pola zapamiętuje pierwszy błąd. Komunikaty są w `config/content.php` (`validation.*`), więc walidator nie zawiera napisów.
+
+Formularze logowania i rejestracji działają tak samo:
+
+- `POST` jest obsługiwany w `SecurityController`, a wartości z `$_POST` czyta `AppController::postString()` (pole z tablicą, np. `email[]=x`, traktowane jest jak puste),
+- przy błędzie kontroler odsyła formularz z kodem **422**, komunikatami przy polach i wpisanym e-mailem; haseł nigdy nie odsyła,
+- komunikaty są powiązane z polami przez `aria-describedby` i `aria-invalid`, a nad formularzem jest podsumowanie błędów z linkami do pól,
+- formularze mają `novalidate`, żeby komunikaty zawsze pochodziły z serwera,
+- przy poprawnych danych kontroler odpowiada przekierowaniem **303** (wzorzec Post/Redirect/Get), więc odświeżenie strony nie wysyła formularza drugi raz.
+
+Limity pól: e-mail do 254 znaków, hasło od 8 do 64 znaków, z literą, cyfrą i znakiem specjalnym.
 
 ## Zmiana tekstów i marki
 

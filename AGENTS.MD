@@ -16,7 +16,7 @@ Aktualnie aplikacja obsługuje:
 
 - katalog win pod `/wines` z filtrem `?type=` oraz rozbudowaną stronę wina pod `/wines/{id}` (opis, notatki degustacyjne, potrawy, sekcja „Zobacz także”; `WineController`, model `App\Model\Wine`, repozytorium `App\Repository\ContentWineRepository` czytające `config/content.php`); zły format `id` lub `type` daje 400, brak wina 404,
 - stronę główną pod `/` (`DefaultController::index`) — hero z opisem posiadłości i kartami statystyk, dane na razie zapisane na sztywno w kontrolerze,
-- formularz logowania pod `/login` (`SecurityController::login`) — tylko widok, bez trasy POST i bez uwierzytelniania,
+- formularze logowania (`/login`) i rejestracji (`/register`) w `SecurityController` z trasami GET i POST — walidacja po stronie serwera przez `Validator`, błędy z kodem 422 i komunikatami przy polach, przekierowanie 303 po sukcesie; bez uwierzytelniania, sesji i zapisu konta,
 - strony błędów 400, 404 i 500 (`ErrorController::show`, widok `error.html.php`); router rzuca `NotFoundException`, a front controller zamienia `HttpException` na stronę błędu,
 - walidację formularzy po stronie serwera (`App\Service\Validator`, komunikaty w `config/content.php` pod kluczem `validation`).
 
@@ -45,6 +45,7 @@ Nie ma jeszcze logowania, sesji, rezerwacji ani bazy danych (wina pochodzą z pl
 │   └── views/                 # szablony HTML (*.html.php)
 │       ├── home.html.php      # strona główna
 │       ├── login.html.php     # logowanie
+│       ├── register.html.php  # rejestracja
 │       └── error.html.php     # błędy 400, 404, 500
 ├── src/
 │   ├── controllers/           # App\Controller\* (AppController, Default, Security, Error itd.)
@@ -213,7 +214,7 @@ W projekcie nie ma obecnie skonfigurowanego zestawu testów automatycznych ani n
 
 - uruchom `php -l` dla każdego zmienionego pliku PHP,
 - sprawdź `composer dump-autoload`, jeżeli zmieniałeś klasy lub namespace,
-- uruchom kontenery i sprawdź zmienione endpointy (`/`, `/wines`, `/tastings`, `/about`, `/login`, nieistniejąca trasa → 404),
+- uruchom kontenery i sprawdź zmienione endpointy (`/`, `/wines`, `/tastings`, `/about`, `/login`, `/register`, nieistniejąca trasa → 404),
 - przy zmianach CSS sprawdź widok mobilny (np. 375 px) i desktopowy (≥ 1024 px) pod kątem braku poziomego przewijania oraz stany `:hover` i `:focus-visible` (nawigacja klawiszem Tab),
 - upewnij się, że logi `docker compose logs` nie zawierają nowych błędów,
 - nie twierdź, że testy przeszły, jeżeli ich faktycznie nie uruchomiono.
