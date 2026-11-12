@@ -344,7 +344,29 @@ return [
         'password' => 'Hasło',
         'remember' => 'Zapamiętaj mnie na tym urządzeniu',
         'submit' => 'Zaloguj się',
+        'registered' => 'Dane z formularza są poprawne. Zakładanie kont będzie dostępne po podłączeniu bazy danych.',
+        'no_account' => 'Nie masz konta?',
+        'register_link' => 'Zarejestruj się',
         'back' => 'Wróć na stronę główną',
+    ],
+
+    'register' => [
+        'page_title' => 'Rejestracja — {site.name}',
+        'title' => 'Załóż konto w {site.name}',
+        'intro' => 'Konto gościa pozwoli rezerwować degustacje i wracać do ulubionych win.',
+        'legend' => 'Dane konta',
+        'email' => 'Adres e-mail',
+        'password' => 'Hasło',
+        'password_hint' => 'Co najmniej {min} znaków, w tym litera, cyfra i znak specjalny.',
+        'password_confirmation' => 'Powtórz hasło',
+        'submit' => 'Utwórz konto',
+        'have_account' => 'Masz już konto?',
+        'login_link' => 'Zaloguj się',
+        'back' => 'Wróć na stronę główną',
+    ],
+
+    'forms' => [
+        'error_summary' => 'Popraw zaznaczone pola:',
     ],
 
     'footer' => [
@@ -358,6 +380,8 @@ return [
         'min_length' => 'Wpisz co najmniej {min} znaków.',
         'max_length' => 'Wpisz najwyżej {max} znaków.',
         'matches' => 'Wartości w obu polach muszą być takie same.',
+        'letter_and_digit' => 'Użyj co najmniej jednej litery i jednej cyfry.',
+        'special_character' => 'Dodaj co najmniej jeden znak specjalny, np. ! # ? lub @.',
     ],
 
     'errors' => [

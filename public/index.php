@@ -21,6 +21,8 @@ $routing->get('/tastings', TastingController::class, 'index');
 $routing->get('/about', AboutController::class, 'index');
 $routing->get('/login', SecurityController::class, 'login');
 $routing->post('/login', SecurityController::class, 'authenticate');
+$routing->get('/register', SecurityController::class, 'register');
+$routing->post('/register', SecurityController::class, 'createAccount');
 $routing->get('/', DefaultController::class, 'index');
 
 try {
