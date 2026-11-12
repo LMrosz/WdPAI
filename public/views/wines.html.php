@@ -1,3 +1,12 @@
+<?php
+/**
+ * Katalog win.
+ *
+ * @var list<App\Model\Wine> $wines
+ * @var array<string, string> $filters etykiety filtrów (klucz all + kategorie)
+ * @var string $activeFilter
+ */
+?>
 <main class="page catalog-page">
     <section aria-labelledby="wines-title">
         <header class="catalog-header">
@@ -6,24 +15,23 @@
             <p><?= $t('wines.intro') ?></p>
         </header>
 
+        <nav class="filter" aria-label="<?= $t('wines.filter_label') ?>">
+            <ul>
+                <?php foreach ($filters as $key => $label): ?>
+                    <li>
+                        <a href="<?= $key === 'all' ? '/wines' : '/wines?type=' . $e($key) ?>"<?= $key === $activeFilter ? ' aria-current="true"' : '' ?>><?= $e($label) ?></a>
+                    </li>
+                <?php endforeach; ?>
+            </ul>
+        </nav>
+
         <?php if ($wines === []): ?>
-            <p><?= $t('wines.empty') ?></p>
+            <p><?= $t($activeFilter === 'all' ? 'wines.empty' : 'wines.empty_filtered') ?></p>
         <?php else: ?>
             <ul class="catalog">
                 <?php foreach ($wines as $wine): ?>
                     <li>
-                        <article class="card">
-                            <?php if (!empty($wine['award'])): ?>
-                                <p class="card-badge"><?= $e($wine['award']) ?></p>
-                            <?php endif; ?>
-                            <h2><?= $e(trim($wine['name'] . ' ' . ($wine['vintage'] ?? ''))) ?></h2>
-                            <p class="card-meta"><?= $e(implode(' • ', array_filter([$wine['type'] ?? null, $wine['grape'] ?? null, $wine['abv'] ?? null]))) ?></p>
-                            <p class="card-text"><?= $e($content->fill($wine['notes'])) ?></p>
-                            <p class="card-price">
-                                <small><?= $t('wines.price_label') ?></small>
-                                <?= $e($wine['price']) ?>
-                            </p>
-                        </article>
+                        <?php require __DIR__ . '/partials/wine-card.html.php'; ?>
                     </li>
                 <?php endforeach; ?>
             </ul>

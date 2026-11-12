@@ -16,6 +16,7 @@ require_once dirname(__DIR__) . '/vendor/autoload.php';
 $routing = new Routing();
 
 $routing->get('/wines', WineController::class, 'index');
+$routing->get('/wines/{id}', WineController::class, 'show');
 $routing->get('/tastings', TastingController::class, 'index');
 $routing->get('/about', AboutController::class, 'index');
 $routing->get('/login', SecurityController::class, 'login');

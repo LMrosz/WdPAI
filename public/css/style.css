@@ -456,7 +456,7 @@ input[type="checkbox"] {
   box-shadow: var(--shadow-ambient);
 }
 
-.card h2 {
+.card :is(h2, h3) {
   margin: 0;
   font-size: 1.5rem;
   line-height: 1.3333;
@@ -508,6 +508,398 @@ input[type="checkbox"] {
   font-weight: 500;
   letter-spacing: 0.06em;
   text-transform: uppercase;
+}
+
+/* Karta wina w katalogu: butelka na tle w kolorze kategorii, cała karta jest klikalna */
+.card--wine {
+  position: relative;
+  padding: 0;
+  overflow: hidden;
+}
+
+.card-visual {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 11rem;
+  padding-block: var(--space-md);
+  background:
+    radial-gradient(ellipse 60% 70% at 50% 45%, color-mix(in srgb, var(--wine-accent) 38%, transparent), transparent 75%),
+    color-mix(in srgb, var(--wine-accent) 12%, var(--color-surface));
+  border-bottom: 1px solid var(--color-border);
+}
+
+.card-visual .bottle {
+  filter: drop-shadow(0 8px 8px rgba(0, 0, 0, 0.3));
+}
+
+.card-body {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: var(--space-sm);
+  padding: var(--space-lg);
+}
+
+.card--wine :is(h2, h3) a::after {
+  position: absolute;
+  inset: 0;
+  content: "";
+}
+
+.card--wine:has(a:focus-visible) {
+  outline: 3px solid var(--color-primary);
+  outline-offset: 3px;
+}
+
+.card--wine a:focus-visible {
+  outline: 0;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .card--wine {
+    transition: transform 0.2s ease, border-color 0.2s ease;
+  }
+
+  .card--wine:hover {
+    border-color: var(--color-gold);
+    transform: translateY(-4px);
+  }
+}
+
+/* Filtr katalogu win: linki-kapsuły; aktywny filtr ma złote tło */
+.filter ul {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-sm);
+  margin: 0 0 var(--space-lg);
+  padding: 0;
+  list-style: none;
+}
+
+.filter a {
+  display: inline-block;
+  padding: var(--space-xs) var(--space-md);
+  color: var(--color-text);
+  border: 1px solid var(--color-gold-trim);
+  border-radius: 9999px;
+  font-size: 0.875rem;
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.filter a:hover {
+  color: var(--color-text);
+  border-color: var(--color-gold);
+}
+
+.filter a[aria-current],
+.filter a[aria-current]:hover {
+  color: #2a0a12;
+  background-color: var(--color-gold-light);
+  border-color: var(--color-gold-light);
+}
+
+/* tytuł karty w katalogu jest linkiem do szczegółów */
+.card :is(h2, h3) a {
+  text-decoration: none;
+}
+
+.card :is(h2, h3) a:hover {
+  text-decoration: underline;
+}
+
+/* Kolory wina zależą od kategorii (klasa wine--*): akcent, szkło butelki, kapsel */
+.wine--red {
+  --wine-accent: #b3304f;
+  --glass: #1d0c11;
+  --foil: #8a253d;
+}
+
+.wine--white {
+  --wine-accent: #d9bf5a;
+  --glass: #5d6e3c;
+  --foil: #d4af37;
+}
+
+.wine--rose {
+  --wine-accent: #e8909f;
+  --glass: #d8a3ab;
+  --foil: #e5c358;
+}
+
+.wine--sparkling {
+  --wine-accent: #e5c358;
+  --glass: #26361f;
+  --foil: #d4af37;
+}
+
+/* Butelka (SVG): kolory z tokenów kategorii */
+.bottle {
+  display: block;
+  height: 100%;
+  width: auto;
+}
+
+.bottle-glass {
+  fill: var(--glass);
+}
+
+.bottle-foil {
+  fill: var(--foil);
+}
+
+.bottle-shine {
+  fill: none;
+  stroke: #ffffff;
+  stroke-opacity: 0.22;
+  stroke-linecap: round;
+  stroke-width: 6;
+}
+
+.bottle-label {
+  fill: #f6efe6;
+}
+
+.bottle-label-frame,
+.bottle-label-mark {
+  fill: none;
+  stroke: #b08d2a;
+  stroke-width: 1.25;
+}
+
+/* Szczegóły wina: nagłówek z butelką, potem treść i karta wina */
+.breadcrumb ol {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-sm);
+  margin: 0 0 var(--space-xl);
+  padding: 0;
+  font-size: 0.875rem;
+  list-style: none;
+}
+
+.breadcrumb li + li::before {
+  margin-right: var(--space-sm);
+  color: var(--color-gold-light);
+  content: "/";
+}
+
+.wine-hero {
+  display: grid;
+  gap: var(--space-xl);
+  margin-bottom: var(--space-2xl);
+}
+
+.wine-hero-text .card-badge {
+  display: inline-block;
+  margin-bottom: var(--space-md);
+}
+
+.wine-hero h1 {
+  margin-bottom: var(--space-md);
+}
+
+.wine-hero h1::after {
+  display: block;
+  width: 4rem;
+  height: 2px;
+  margin-top: var(--space-md);
+  background: linear-gradient(90deg, var(--color-gold), transparent);
+  content: "";
+}
+
+.wine-lead {
+  max-width: 34rem;
+  font-size: 1.125rem;
+}
+
+.wine-price {
+  display: flex;
+  flex-direction: column;
+  margin: var(--space-lg) 0 0;
+  font-family: var(--font-serif);
+  font-size: 2.25rem;
+  font-weight: 600;
+  line-height: 1.2;
+}
+
+.wine-price small {
+  color: var(--color-muted);
+  font-family: var(--font-sans);
+  font-size: 0.75rem;
+  font-weight: 500;
+}
+
+/* Scena z butelką: poświata w kolorze wina, rocznik jako tło */
+.wine-stage {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 16rem;
+  padding-block: var(--space-lg);
+  overflow: hidden;
+  background:
+    radial-gradient(ellipse 55% 60% at 50% 42%, color-mix(in srgb, var(--wine-accent) 50%, transparent), transparent 72%),
+    rgba(0, 0, 0, 0.22);
+  border: 1px solid var(--color-gold-trim);
+  border-radius: var(--radius-lg);
+}
+
+.wine-stage .bottle {
+  position: relative;
+  filter: drop-shadow(0 18px 20px rgba(0, 0, 0, 0.45));
+}
+
+.wine-stage-year {
+  position: absolute;
+  bottom: -0.15em;
+  left: 50%;
+  color: rgba(255, 255, 255, 0.08);
+  font-family: var(--font-serif);
+  font-size: 7rem;
+  font-weight: 600;
+  line-height: 1;
+  transform: translateX(-50%);
+}
+
+.wine-layout {
+  display: grid;
+  gap: var(--space-xl);
+}
+
+.wine-body {
+  padding: var(--space-lg);
+  background-color: rgba(0, 0, 0, 0.18);
+  border: 1px solid var(--color-gold-trim);
+  border-radius: var(--radius-lg);
+}
+
+.wine-body section + section {
+  margin-top: var(--space-xl);
+  padding-top: var(--space-xl);
+  border-top: 1px solid var(--color-gold-trim);
+}
+
+.wine-body h2,
+.wine-aside h2,
+.wine-related h2 {
+  margin-bottom: var(--space-lg);
+  font-size: 1.75rem;
+  line-height: 1.25;
+}
+
+/* krótka złota kreska pod nagłówkami sekcji, spójna z nagłówkiem strony */
+.wine-body h2::after,
+.wine-aside h2::after,
+.wine-related h2::after {
+  display: block;
+  width: 2.5rem;
+  height: 2px;
+  margin-top: var(--space-sm);
+  background: var(--color-gold);
+  content: "";
+}
+
+.wine-story p {
+  max-width: 38rem;
+  font-size: 1.0625rem;
+  line-height: 1.8;
+}
+
+.wine-story p::first-letter {
+  float: left;
+  margin: 0.06em 0.1em 0 0;
+  color: var(--color-gold-light);
+  font-family: var(--font-serif);
+  font-size: 3.1em;
+  line-height: 0.82;
+}
+
+/* Notatki degustacyjne: jak odwrotna etykieta, nazwa po lewej, opis po prawej */
+.wine-tasting {
+  margin: 0;
+  border-top: 1px solid var(--color-gold-trim);
+}
+
+.wine-tasting > div {
+  display: grid;
+  gap: var(--space-xs);
+  padding-block: var(--space-md);
+  border-bottom: 1px solid var(--color-gold-trim);
+}
+
+.wine-tasting dt {
+  color: var(--color-gold-light);
+  font-family: var(--font-serif);
+  font-size: 1.125rem;
+  font-style: italic;
+}
+
+.wine-tasting dd {
+  margin: 0;
+}
+
+/* Potrawy: jedna linia rozdzielona złotymi rombami */
+.wine-pairings {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(10rem, 1fr));
+  gap: var(--space-md);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.wine-pairings li {
+  padding: var(--space-md);
+  background-color: rgba(255, 255, 255, 0.05);
+  border: 1px solid var(--color-gold-trim);
+  border-top: 2px solid var(--color-gold);
+  border-radius: var(--radius);
+  font-family: var(--font-serif);
+  font-size: 1.0625rem;
+  line-height: 1.4;
+}
+
+.wine-aside {
+  align-self: start;
+  height: auto;
+  border-top: 3px solid var(--color-gold);
+}
+
+.wine-related {
+  margin-top: var(--space-2xl);
+}
+
+/* Karta wina: wiersze oddzielone cienkimi liniami */
+.wine-facts {
+  margin: 0;
+}
+
+.wine-facts > div {
+  padding-block: var(--space-md);
+  border-bottom: 1px solid var(--color-border);
+}
+
+.wine-facts > div:first-child {
+  padding-top: 0;
+}
+
+.wine-facts > div:last-child {
+  padding-bottom: 0;
+  border-bottom: 0;
+}
+
+.wine-facts dt {
+  color: var(--color-muted);
+  font-size: 0.8125rem;
+  font-weight: 500;
+}
+
+.wine-facts dd {
+  margin: 0;
+  font-weight: 600;
 }
 
 /* Kroki rezerwacji: lista numerowana z licznikiem CSS */
@@ -700,6 +1092,40 @@ input:focus-visible {
 
   .catalog {
     gap: var(--space-lg);
+  }
+
+  .wine-hero {
+    grid-template-columns: 1.2fr 1fr;
+    align-items: center;
+    gap: var(--space-2xl);
+  }
+
+  .wine-stage {
+    height: 22rem;
+    padding-block: 2.25rem;
+  }
+
+  .wine-stage-year {
+    font-size: 10rem;
+  }
+
+  .wine-body {
+    padding: var(--space-xl);
+  }
+
+  .wine-layout {
+    grid-template-columns: 2fr 1fr;
+    gap: var(--space-2xl);
+  }
+
+  .wine-aside {
+    position: sticky;
+    top: var(--space-lg);
+  }
+
+  .wine-tasting > div {
+    grid-template-columns: 9rem 1fr;
+    gap: var(--space-md);
   }
 
   .steps {
