@@ -67,6 +67,27 @@ final class Validator
         );
     }
 
+    /** Wartość musi zawierać co najmniej jedną literę i jedną cyfrę (np. hasło). */
+    public function letterAndDigit(string $field): self
+    {
+        return $this->check(
+            $field,
+            'letter_and_digit',
+            static fn (string $value): bool => $value === ''
+                || (preg_match('/\p{L}/u', $value) === 1 && preg_match('/\d/', $value) === 1),
+        );
+    }
+
+    /** Wartość musi zawierać co najmniej jeden znak specjalny (nie literę, cyfrę ani spację), np. ! # ?. */
+    public function specialCharacter(string $field): self
+    {
+        return $this->check(
+            $field,
+            'special_character',
+            static fn (string $value): bool => $value === '' || preg_match('/[^\p{L}\d\s]/u', $value) === 1,
+        );
+    }
+
     public function fails(): bool
     {
         return $this->errors !== [];
