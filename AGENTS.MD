@@ -4,7 +4,7 @@ Ten plik jest przewodnikiem dla agentów AI pracujących w repozytorium **VinoKe
 
 ## Cel projektu
 
-VinoKeep to aplikacja dla winnicy i enoturystyki, tworzona w ramach kursu *Wstęp do Projektowania Aplikacji Internetowych* (WdPAI, sem. V). Jest napisana w czystym PHP 8.3 i korzysta z lekkiej, samodzielnie zaimplementowanej architektury MVC, bez frameworka PHP. Działa w kontenerach Docker Compose.
+VinoKeep to aplikacja dla winnicy i enoturystyki, tworzona w ramach kursu *Wstęp do Projektowania Aplikacji Internetowych* (WdPAI). Jest napisana w czystym PHP 8.3 i korzysta z lekkiej, samodzielnie zaimplementowanej architektury MVC, bez frameworka PHP. Działa w kontenerach Docker Compose.
 
 Docelowe role użytkowników (na razie tylko opisane w komentarzach, bez implementacji):
 
@@ -14,11 +14,13 @@ Docelowe role użytkowników (na razie tylko opisane w komentarzach, bez impleme
 
 Aktualnie aplikacja obsługuje:
 
+- katalog win pod `/wines` z filtrem `?type=` oraz rozbudowaną stronę wina pod `/wines/{id}` (opis, notatki degustacyjne, potrawy, sekcja „Zobacz także”; `WineController`, model `App\Model\Wine`, repozytorium `App\Repository\ContentWineRepository` czytające `config/content.php`); zły format `id` lub `type` daje 400, brak wina 404,
 - stronę główną pod `/` (`DefaultController::index`) — hero z opisem posiadłości i kartami statystyk, dane na razie zapisane na sztywno w kontrolerze,
-- formularz logowania pod `/login` (`SecurityController::login`) — tylko widok, bez trasy POST i bez uwierzytelniania,
-- odpowiedź 404 (`DefaultController::notFound`) dla nieznanych tras.
+- formularze logowania (`/login`) i rejestracji (`/register`) w `SecurityController` z trasami GET i POST — walidacja po stronie serwera przez `Validator`, błędy z kodem 422 i komunikatami przy polach, przekierowanie 303 po sukcesie; bez uwierzytelniania, sesji i zapisu konta,
+- strony błędów 400, 404 i 500 (`ErrorController::show`, widok `error.html.php`); router rzuca `NotFoundException`, a front controller zamienia `HttpException` na stronę błędu,
+- walidację formularzy po stronie serwera (`App\Service\Validator`, komunikaty w `config/content.php` pod kluczem `validation`).
 
-Nie ma jeszcze logowania, sesji, rezerwacji, oferty win ani warstwy Model — nie opisuj ich jako istniejących.
+Nie ma jeszcze logowania, sesji, rezerwacji ani bazy danych (wina pochodzą z pliku, nie z bazy) — nie opisuj ich jako istniejących.
 
 ## Stack technologiczny
 
@@ -43,9 +45,14 @@ Nie ma jeszcze logowania, sesji, rezerwacji, oferty win ani warstwy Model — ni
 │   └── views/                 # szablony HTML (*.html.php)
 │       ├── home.html.php      # strona główna
 │       ├── login.html.php     # logowanie
-│       └── not-found.html.php # 404
+│       ├── register.html.php  # rejestracja
+│       └── error.html.php     # błędy 400, 404, 500
 ├── src/
-│   ├── controllers/           # App\Controller\* (Default, Security, AppController)
+│   ├── controllers/           # App\Controller\* (AppController, Default, Security, Error itd.)
+│   ├── Exception/             # App\Exception\* — HttpException, BadRequestException, NotFoundException
+│   ├── Model/                 # App\Model\* — Wine
+│   ├── Repository/            # App\Repository\* — WineRepositoryInterface, ContentWineRepository
+│   ├── Service/               # App\Service\* — SiteContent, Validator
 │   └── Routing.php            # App\Routing — rejestracja i obsługa tras
 ├── AGENTS.MD                  # ten plik
 ├── README.md                  # opis projektu dla ludzi
@@ -58,7 +65,7 @@ Usługi Docker Compose:
 | Usługa | Rola | Port na hoście |
 |---|---|---|
 | `server` | Nginx, document root `public/` | `8080` |
-| `php` | PHP-FPM (przy starcie wykonuje `composer dump-autoload`) | — |
+| `php` | PHP-FPM z Xdebugiem (przy starcie wykonuje `composer dump-autoload`) | Xdebug: `9003` (połączenie z IDE) |
 | `db` | PostgreSQL | `POSTGRES_PORT` (domyślnie `5433`) |
 | `mailpit` | podgląd wysyłanych e-maili (dev) | `MAILPIT_PORT` (domyślnie `8025`) |
 | `pgadmin-wdpai` | panel administracyjny bazy | `PGADMIN_PORT` (domyślnie `5050`) |
@@ -93,9 +100,9 @@ $routing->post('/example', ExampleController::class, 'store');
 
 ### Router
 
-`src/Routing.php` (`App\Routing`) łączy metodę HTTP i ścieżkę URL z publiczną metodą kontrolera. Parametry zapisane jako `{name}` są obecnie dopasowywane tylko do cyfr, konwertowane na `int` i przekazywane do akcji kontrolera przez nazwane argumenty.
+`src/Routing.php` (`App\Routing`) łączy metodę HTTP i ścieżkę URL z publiczną metodą kontrolera. Parametry zapisane jako `{name}` pasują do dowolnego fragmentu ścieżki bez ukośnika i trafiają do akcji kontrolera jako `string` przez nazwane argumenty. Format parametru sprawdza kontroler: zły format to `BadRequestException` (400), a poprawny format bez rekordu to `NotFoundException` (404).
 
-Przykład: trasa `/wines/{id}` wywołałaby `WineController::show(int $id)` (obecnie w projekcie nie ma tras z parametrem).
+Przykład: trasa `/wines/{id}` wywołuje `WineController::show(string $id)`.
 
 Router obsługuje obecnie metody GET i POST. Nie dodawaj logiki biznesowej do routera.
 
@@ -112,13 +119,13 @@ Kontroler powinien być cienki. Nie umieszczaj w nim rozbudowanych zapytań do b
 
 ### Model
 
-Warstwa Model nie jest jeszcze zaimplementowana. Usługa PostgreSQL istnieje w Docker Compose, ale aplikacja jeszcze się z nią nie łączy. Nie udawaj, że dane widoczne w widokach pochodzą z bazy danych. Gdy funkcja wymaga trwałego przechowywania danych, wydziel klasy modelu/repozytorium zamiast dodawać zapytania SQL do kontrolera.
+Warstwa Model jest na razie minimalna (`Wine` i repozytorium z pliku). Usługa PostgreSQL istnieje w Docker Compose, ale aplikacja jeszcze się z nią nie łączy. Nie udawaj, że dane widoczne w widokach pochodzą z bazy danych. Gdy funkcja wymaga trwałego przechowywania danych, wydziel klasy modelu/repozytorium zamiast dodawać zapytania SQL do kontrolera.
 
 Dla nowych klas zgodnych z mapowaniem `App\` w Composerze preferuj katalogi i nazwy klas o zgodnej wielkości liter, np.:
 
 ```text
 src/Model/Wine.php                   -> App\Model\Wine
-src/Repository/WineRepository.php    -> App\Repository\WineRepository
+src/Repository/ContentWineRepository.php -> App\Repository\ContentWineRepository
 ```
 
 Po dodaniu lub przeniesieniu klas odśwież autoloader poleceniem `composer dump-autoload`.
@@ -169,7 +176,7 @@ Cały wygląd mieści się w jednym arkuszu `public/css/style.css`, zgodnym z sy
 
 Typowy porządek prac:
 
-0. Zanim zaczniesz, upewnij się, że praca idzie na osobnej gałęzi tej funkcji, a nie na `main` (zob. „Git i współpraca").
+0. Zanim zaczniesz, upewnij się, że praca idzie na osobnej gałęzi, a nie na `main` (zob. „Git i współpraca").
 1. Dodaj trasę w `public/index.php`.
 2. Dodaj albo rozszerz kontroler w `src/controllers/`.
 3. Dodaj model, repozytorium lub serwis, jeśli funkcja zawiera logikę biznesową albo dostęp do danych.
@@ -207,7 +214,7 @@ W projekcie nie ma obecnie skonfigurowanego zestawu testów automatycznych ani n
 
 - uruchom `php -l` dla każdego zmienionego pliku PHP,
 - sprawdź `composer dump-autoload`, jeżeli zmieniałeś klasy lub namespace,
-- uruchom kontenery i sprawdź zmienione endpointy (`/`, `/wines`, `/tastings`, `/about`, `/login`, nieistniejąca trasa → 404),
+- uruchom kontenery i sprawdź zmienione endpointy (`/`, `/wines`, `/tastings`, `/about`, `/login`, `/register`, nieistniejąca trasa → 404),
 - przy zmianach CSS sprawdź widok mobilny (np. 375 px) i desktopowy (≥ 1024 px) pod kątem braku poziomego przewijania oraz stany `:hover` i `:focus-visible` (nawigacja klawiszem Tab),
 - upewnij się, że logi `docker compose logs` nie zawierają nowych błędów,
 - nie twierdź, że testy przeszły, jeżeli ich faktycznie nie uruchomiono.
@@ -215,8 +222,8 @@ W projekcie nie ma obecnie skonfigurowanego zestawu testów automatycznych ani n
 ## Git i współpraca
 
 - Praca jest zapisywana w małych, logicznych commitach w stylu Conventional Commits, np. `feat: add hover and focus-visible states`, `chore: ...`, `docs: ...`.
-- **Każda nowa funkcjonalność powstaje na osobnej gałęzi.** Nie pracuj bezpośrednio na `main`. Nazwa gałęzi ma prefiks zgodny z typem zmiany i krótki opis małymi literami przez myślniki, np. `feat/register-form`, `feat/routing-wine-id`, `fix/login-validation`, `docs/readme-erd`, `chore/xdebug`. Gałąź obejmuje jedną funkcję lub jeden krok zadania; niezwiązane poprawki idą na osobną gałąź. Po zakończeniu i sprawdzeniu funkcji gałąź jest scalana do `main` (merge lub Pull Request), a `main` ma zawsze działającą wersję.
-- Przed rozpoczęciem funkcji agent sprawdza `git branch --show-current`. Jeżeli aktualną gałęzią jest `main`, przed edycją podaje użytkownikowi polecenie `git switch -c <prefiks>/<opis>` i nie zaczyna pracy, dopóki gałąź nie istnieje. Gałęzie tworzy i scala użytkownik, tak samo jak commity.
+- **Każdy lab (większy zakres prac) powstaje na jednej, osobnej gałęzi.** Nie pracuj bezpośrednio na `main`. Nazwa gałęzi to prefiks zgodny z typem zmiany plus krótki opis małymi literami przez myślniki, np. `feat/validation-routing-forms`, `feat/-postgresql`. W obrębie gałęzi pracę dalej zapisujesz w małych, logicznych commitach (jeden commit na krok). Osobna gałąź jest potrzebna tylko wtedy, gdy zakres wyraźnie odbiega od reszty (np. niezwiązana poprawka lub dokumentacja). Po zakończeniu i sprawdzeniu gałąź jest scalana do `main` ( Pull Request), a `main` ma zawsze działającą wersję.
+- Przed rozpoczęciem pracy agent sprawdza `git branch --show-current`. Jeżeli aktualną gałęzią jest `main`, przed edycją podaje użytkownikowi polecenie `git switch -c <prefiks>/<opis>` i nie zaczyna pracy, dopóki gałąź nie istnieje. Gdy gałąź bieżącego tematu już istnieje, praca toczy się na niej bez zakładania nowej. Gałęzie tworzy i scala użytkownik, tak samo jak commity.
 - **Commity i push wykonuje użytkownik.** Agent nie wykonuje `git commit` ani `git push`; po zakończeniu kroku podaje, które pliki dodać (`git add`) i proponuje tytuł commitu.
 - Nie wysyłaj zmian na GitHub bez wyraźnej prośby, jeśli zostaniesz o to poproszony nazywaj commity w następujący sposób:
 

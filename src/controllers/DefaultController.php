@@ -13,12 +13,4 @@ final class DefaultController extends AppController
             'activePage' => 'home',
         ], true);
     }
-
-    public function notFound(): void
-    {
-        $this->render('not-found', [
-            'pageTitle' => $this->text('errors.not_found.page_title'),
-            'activePage' => null,
-        ], true);
-    }
 }

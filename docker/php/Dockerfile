@@ -34,6 +34,13 @@ RUN { \
       echo 'max_file_uploads = 20'; \
     } > /usr/local/etc/php/conf.d/mealplanner.ini
 
+# Xdebug (debugowanie krokowe w IDE); ustawienia w docker/php/xdebug.ini
+RUN apk add --no-cache --virtual .xdebug-build-deps $PHPIZE_DEPS linux-headers \
+    && pecl install xdebug \
+    && docker-php-ext-enable xdebug \
+    && apk del .xdebug-build-deps
+COPY docker/php/xdebug.ini /usr/local/etc/php/conf.d/xdebug.ini
+
 COPY . .
 
 ENV COMPOSER_ALLOW_SUPERUSER=1

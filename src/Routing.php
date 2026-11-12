@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App;
 
 use App\Controller\AppController;
+use App\Exception\NotFoundException;
 
 final class Routing
 {
@@ -37,7 +38,9 @@ final class Routing
 	/* 
 	Funkcja dzieli ścieżkę na fragmenty. Zwykłe fragmenty pozostawia bez zmian, 
 	a fragment zapisany w klamrach, na przykład {id}, zamienia na nazwany 
-	parametr przyjmujący cyfry. Następnie ponownie składa ścieżkę w wyrażenie regularne.
+	parametr przyjmujący dowolny tekst bez ukośnika. Format parametru sprawdza 
+	kontroler, dzięki czemu zły format daje 400, a nie 404. Następnie ponownie 
+	składa ścieżkę w wyrażenie regularne.
 	*/
     private function createPattern(string $path): string
     {
@@ -46,7 +49,7 @@ final class Routing
         foreach ($parts as &$part) {
             if (str_starts_with($part, '{') && str_ends_with($part, '}')) {
                 $parameterName = trim($part, '{}');
-                $part = '(?P<' . $parameterName . '>\d+)';
+                $part = '(?P<' . $parameterName . '>[^/]+)';
                 continue;
             }
 
@@ -57,7 +60,11 @@ final class Routing
         return '~^' . implode('/', $parts) . '$~';
     }
 
-    public function dispatch(string $method, string $uri): bool
+    /**
+     * Wywołuje akcję pasującej trasy; parametry ze ścieżki trafiają do niej jako teksty.
+     * Gdy żadna trasa nie pasuje, rzuca NotFoundException (404).
+     */
+    public function dispatch(string $method, string $uri): void
     {
         $path = parse_url($uri, PHP_URL_PATH) ?: '/';
 
@@ -76,12 +83,6 @@ final class Routing
                 ARRAY_FILTER_USE_KEY,
             );
 
-            $parameters = array_map(
-                static fn (string $value): int|string =>
-                    ctype_digit($value) ? (int) $value : $value,
-                $parameters,
-            );
-
             $controllerClass = $route['controller'];
             $controller = new $controllerClass();
 
@@ -91,9 +92,9 @@ final class Routing
 
             $controller->{$route['action']}(...$parameters);
 
-            return true;
+            return;
         }
 
-        return false;
+        throw new NotFoundException('No route for ' . $method . ' ' . $path);
     }
 }

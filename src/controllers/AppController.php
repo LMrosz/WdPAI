@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Controller;
 
 use App\Service\SiteContent;
+use App\Service\Validator;
 
 abstract class AppController
 {
@@ -62,6 +63,30 @@ abstract class AppController
     private static function escape(mixed $value): string
     {
         return htmlspecialchars((string) $value, ENT_QUOTES, 'UTF-8');
+    }
+
+    /** Wartość pola z POST jako tekst; brak pola albo tablica (np. email[]=x) daje pusty tekst. */
+    protected function postString(string $key): string
+    {
+        $value = $_POST[$key] ?? '';
+
+        return is_string($value) ? $value : '';
+    }
+
+    /**
+     * Zamienia błędy walidatora na komunikaty z config/content.php (validation.<reguła>).
+     *
+     * @return array<string, string> nazwa pola => komunikat
+     */
+    protected function validationMessages(Validator $validator): array
+    {
+        $messages = [];
+
+        foreach ($validator->errors() as $field => $error) {
+            $messages[$field] = $this->text('validation.' . $error['rule'], $error['params']);
+        }
+
+        return $messages;
     }
 
     /** Przekierowanie po udanym żądaniu POST (303 See Other → przeglądarka wykona GET). */
