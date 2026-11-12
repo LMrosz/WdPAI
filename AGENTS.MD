@@ -65,7 +65,7 @@ Usługi Docker Compose:
 | Usługa | Rola | Port na hoście |
 |---|---|---|
 | `server` | Nginx, document root `public/` | `8080` |
-| `php` | PHP-FPM (przy starcie wykonuje `composer dump-autoload`) | — |
+| `php` | PHP-FPM z Xdebugiem (przy starcie wykonuje `composer dump-autoload`) | Xdebug: `9003` (połączenie z IDE) |
 | `db` | PostgreSQL | `POSTGRES_PORT` (domyślnie `5433`) |
 | `mailpit` | podgląd wysyłanych e-maili (dev) | `MAILPIT_PORT` (domyślnie `8025`) |
 | `pgadmin-wdpai` | panel administracyjny bazy | `PGADMIN_PORT` (domyślnie `5050`) |

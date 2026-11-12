@@ -44,6 +44,42 @@ docker compose up --build -d
 
 Porty i dane dostępowe bazy można zmienić zmiennymi środowiskowymi (np. w pliku `.env`): `POSTGRES_PORT`, `POSTGRES_DB`, `POSTGRES_USER`, `POSTGRES_PASSWORD`, `MAILPIT_PORT`, `PGADMIN_PORT`. Zatrzymanie: `docker compose down`.
 
+## Debugowanie (Xdebug)
+
+Kontener `php` ma zainstalowany Xdebug 3 (konfiguracja w `docker/php/xdebug.ini`: tryb `debug`, port `9003`, host `host.docker.internal`). Po zmianie Dockerfile'a trzeba przebudować obraz: `docker compose up --build -d`.
+
+Sprawdzenie, że rozszerzenie działa:
+
+```bash
+docker compose exec php php -v        # w wersji powinno być "with Xdebug v3..."
+docker compose exec php php -i | grep xdebug.mode
+```
+
+Konfiguracja w VS Code (rozszerzenie **PHP Debug**, autor Xdebug). Folder `.vscode/` jest w `.gitignore`, więc plik `.vscode/launch.json` każdy tworzy u siebie:
+
+```json
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "Listen for Xdebug (Docker)",
+      "type": "php",
+      "request": "launch",
+      "port": 9003,
+      "pathMappings": { "/app": "${workspaceFolder}" }
+    }
+  ]
+}
+```
+
+Użycie:
+
+1. Ustaw punkt przerwania, np. w `WineController::show` w `src/controllers/WineController.php`.
+2. Uruchom konfigurację „Listen for Xdebug (Docker)” (F5).
+3. Otwórz http://localhost:8080/wines/1. Wykonanie zatrzyma się na punkcie przerwania i będzie można oglądać zmienne oraz wykonywać kod krok po kroku.
+
+W PhpStorm wystarczy w ustawieniach PHP dodać serwer `localhost:8080` z mapowaniem ścieżek katalogu projektu na `/app`, a port debuggera ustawić na `9003`. Na Linuxie `host.docker.internal` działa dzięki wpisowi `extra_hosts` w `docker-compose.yaml`. Gdy debugowanie nie jest potrzebne, w `docker/php/xdebug.ini` można ustawić `xdebug.mode = off`.
+
 ## Struktura projektu
 
 ```text
