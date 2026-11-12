@@ -35,6 +35,8 @@ services:
     command: sh -c "composer dump-autoload --no-interaction && exec php-fpm"
     volumes:
       - .:/app
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     networks:
       - pg-network
 
