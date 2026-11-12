@@ -7,7 +7,7 @@ VinoKeep to aplikacja webowa dla winnic: prezentuje ofertę (wina, degustacje, h
 | Obszar | Co robi | Status |
 |---|---|---|
 | Strona startowa (`/`) | Hero, statystyki winnicy, przyciski do głównych sekcji | gotowe |
-| Nasze wina (`/wines`) | Katalog win w siatce kart (Sepremento, Biały Wilk, Rzeźnik z Blaviken, Geralt z Rivii i wina przykładowe) | gotowe |
+| Nasze wina (`/wines`) | Katalog win w siatce kart, filtr rodzaju (`?type=`) i rozbudowana strona szczegółów wina (`/wines/{id}`: opis, notatki degustacyjne, potrawy, temperatura podawania, leżakowanie, karta z ceną i sekcja „Zobacz także”) | gotowe (dane z pliku, bez bazy) |
 | Degustacje (`/tastings`) | Oferty degustacji i kroki rezerwacji | gotowe (bez rezerwacji) |
 | O winnicy (`/about`) | Historia, fakty i cechy posiadłości | gotowe |
 | Logowanie (`/login`) | Formularz, walidacja pustych pól (422), przekierowanie na `/` po wysłaniu | tymczasowo, bez uwierzytelniania |
@@ -61,6 +61,8 @@ my-app/
 ├── src/
 │   ├── Routing.php          # router
 │   ├── Exception/           # HttpException i wyjątki 400 oraz 404
+│   ├── Model/Wine.php       # wino jako obiekt tylko do odczytu
+│   ├── Repository/          # WineRepositoryInterface i implementacja czytająca config/content.php
 │   ├── Service/
 │   │   ├── SiteContent.php  # odczyt tekstów z config/content.php
 │   │   └── Validator.php    # walidacja danych z formularzy po stronie serwera
@@ -86,11 +88,18 @@ Wygląd obu motywów opisują zmienne CSS w `public/css/style.css`: motyw jasny 
 | Metoda | Ścieżka | Opis |
 |---|---|---|
 | GET | `/` | Strona główna |
-| GET | `/wines` | Katalog win |
+| GET | `/wines` | Katalog win; opcjonalny filtr `?type=red`, `white`, `rose` albo `sparkling` (inna wartość daje 400) |
+| GET | `/wines/{id}` | Strona wina z opisem, notatkami degustacyjnymi i propozycjami potraw; `id` niebędące dodatnią liczbą daje 400, a nieistniejące wino 404 |
 | GET | `/tastings` | Degustacje |
 | GET | `/about` | O winnicy |
 | GET | `/login` | Formularz logowania |
 | POST | `/login` | Obsługa formularza (na razie bez uwierzytelniania) |
+
+## Parametry w adresie
+
+Trasa może mieć parametr w klamrach, np. `/wines/{id}`. Router przekazuje go do akcji kontrolera jako tekst, a format sprawdza kontroler. Dzięki temu `/wines/abc` daje 400 (zły format), a `/wines/999` 404 (poprawny format, ale nie ma takiego wina). Parametry z query string (`?type=`) kontroler też waliduje i przy nieznanej wartości rzuca `BadRequestException`.
+
+Kontroler korzysta z `WineRepositoryInterface`, więc źródło win można podmienić na bazę danych bez zmian w kontrolerze. Na razie `ContentWineRepository` czyta listę z `config/content.php`, a identyfikator wina to jego numer na liście, licząc od 1.
 
 ## Obsługa błędów
 
@@ -114,4 +123,4 @@ Nazwa winnicy, hasło, nazwa platformy, nawigacja, opisy i lista win są w `conf
 
 ## Autorzy
 
-- Łukasz Mroszczak: całość projektu
+- Łukasz Mroszczak

@@ -4,7 +4,7 @@ Ten plik jest przewodnikiem dla agentów AI pracujących w repozytorium **VinoKe
 
 ## Cel projektu
 
-VinoKeep to aplikacja dla winnicy i enoturystyki, tworzona w ramach kursu *Wstęp do Projektowania Aplikacji Internetowych* (WdPAI, sem. V). Jest napisana w czystym PHP 8.3 i korzysta z lekkiej, samodzielnie zaimplementowanej architektury MVC, bez frameworka PHP. Działa w kontenerach Docker Compose.
+VinoKeep to aplikacja dla winnicy i enoturystyki, tworzona w ramach kursu *Wstęp do Projektowania Aplikacji Internetowych* (WdPAI). Jest napisana w czystym PHP 8.3 i korzysta z lekkiej, samodzielnie zaimplementowanej architektury MVC, bez frameworka PHP. Działa w kontenerach Docker Compose.
 
 Docelowe role użytkowników (na razie tylko opisane w komentarzach, bez implementacji):
 
@@ -14,12 +14,13 @@ Docelowe role użytkowników (na razie tylko opisane w komentarzach, bez impleme
 
 Aktualnie aplikacja obsługuje:
 
+- katalog win pod `/wines` z filtrem `?type=` oraz rozbudowaną stronę wina pod `/wines/{id}` (opis, notatki degustacyjne, potrawy, sekcja „Zobacz także”; `WineController`, model `App\Model\Wine`, repozytorium `App\Repository\ContentWineRepository` czytające `config/content.php`); zły format `id` lub `type` daje 400, brak wina 404,
 - stronę główną pod `/` (`DefaultController::index`) — hero z opisem posiadłości i kartami statystyk, dane na razie zapisane na sztywno w kontrolerze,
 - formularz logowania pod `/login` (`SecurityController::login`) — tylko widok, bez trasy POST i bez uwierzytelniania,
 - strony błędów 400, 404 i 500 (`ErrorController::show`, widok `error.html.php`); router rzuca `NotFoundException`, a front controller zamienia `HttpException` na stronę błędu,
 - walidację formularzy po stronie serwera (`App\Service\Validator`, komunikaty w `config/content.php` pod kluczem `validation`).
 
-Nie ma jeszcze logowania, sesji, rezerwacji, oferty win ani warstwy Model — nie opisuj ich jako istniejących.
+Nie ma jeszcze logowania, sesji, rezerwacji ani bazy danych (wina pochodzą z pliku, nie z bazy) — nie opisuj ich jako istniejących.
 
 ## Stack technologiczny
 
@@ -48,6 +49,8 @@ Nie ma jeszcze logowania, sesji, rezerwacji, oferty win ani warstwy Model — ni
 ├── src/
 │   ├── controllers/           # App\Controller\* (AppController, Default, Security, Error itd.)
 │   ├── Exception/             # App\Exception\* — HttpException, BadRequestException, NotFoundException
+│   ├── Model/                 # App\Model\* — Wine
+│   ├── Repository/            # App\Repository\* — WineRepositoryInterface, ContentWineRepository
 │   ├── Service/               # App\Service\* — SiteContent, Validator
 │   └── Routing.php            # App\Routing — rejestracja i obsługa tras
 ├── AGENTS.MD                  # ten plik
@@ -96,9 +99,9 @@ $routing->post('/example', ExampleController::class, 'store');
 
 ### Router
 
-`src/Routing.php` (`App\Routing`) łączy metodę HTTP i ścieżkę URL z publiczną metodą kontrolera. Parametry zapisane jako `{name}` są obecnie dopasowywane tylko do cyfr, konwertowane na `int` i przekazywane do akcji kontrolera przez nazwane argumenty.
+`src/Routing.php` (`App\Routing`) łączy metodę HTTP i ścieżkę URL z publiczną metodą kontrolera. Parametry zapisane jako `{name}` pasują do dowolnego fragmentu ścieżki bez ukośnika i trafiają do akcji kontrolera jako `string` przez nazwane argumenty. Format parametru sprawdza kontroler: zły format to `BadRequestException` (400), a poprawny format bez rekordu to `NotFoundException` (404).
 
-Przykład: trasa `/wines/{id}` wywołałaby `WineController::show(int $id)` (obecnie w projekcie nie ma tras z parametrem).
+Przykład: trasa `/wines/{id}` wywołuje `WineController::show(string $id)`.
 
 Router obsługuje obecnie metody GET i POST. Nie dodawaj logiki biznesowej do routera.
 
@@ -115,13 +118,13 @@ Kontroler powinien być cienki. Nie umieszczaj w nim rozbudowanych zapytań do b
 
 ### Model
 
-Warstwa Model nie jest jeszcze zaimplementowana. Usługa PostgreSQL istnieje w Docker Compose, ale aplikacja jeszcze się z nią nie łączy. Nie udawaj, że dane widoczne w widokach pochodzą z bazy danych. Gdy funkcja wymaga trwałego przechowywania danych, wydziel klasy modelu/repozytorium zamiast dodawać zapytania SQL do kontrolera.
+Warstwa Model jest na razie minimalna (`Wine` i repozytorium z pliku). Usługa PostgreSQL istnieje w Docker Compose, ale aplikacja jeszcze się z nią nie łączy. Nie udawaj, że dane widoczne w widokach pochodzą z bazy danych. Gdy funkcja wymaga trwałego przechowywania danych, wydziel klasy modelu/repozytorium zamiast dodawać zapytania SQL do kontrolera.
 
 Dla nowych klas zgodnych z mapowaniem `App\` w Composerze preferuj katalogi i nazwy klas o zgodnej wielkości liter, np.:
 
 ```text
 src/Model/Wine.php                   -> App\Model\Wine
-src/Repository/WineRepository.php    -> App\Repository\WineRepository
+src/Repository/ContentWineRepository.php -> App\Repository\ContentWineRepository
 ```
 
 Po dodaniu lub przeniesieniu klas odśwież autoloader poleceniem `composer dump-autoload`.
