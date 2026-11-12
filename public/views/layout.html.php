@@ -16,6 +16,6 @@
 
     <?php require __DIR__ . '/partials/footer.html.php'; ?>
 
-    <script src="/js/theme.js" defer></script>
+    <script src="/js/theme.js?v=<?= (int) @filemtime(__DIR__ . '/../js/theme.js') ?>" defer></script>
 </body>
 </html>
