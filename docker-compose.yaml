@@ -24,8 +24,14 @@ services:
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-app_password}
     networks:
       - pg-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
     volumes:
-      - ./docker/db:/docker-entrypoint-initdb.d
+      # skrypty .sql z database/ wykonują się raz, przy pierwszym starcie z pustym wolumenem pg-data
+      - ./database:/docker-entrypoint-initdb.d:ro
       - pg-data:/var/lib/postgresql
 
   php:
@@ -35,6 +41,16 @@ services:
     command: sh -c "composer dump-autoload --no-interaction && exec php-fpm"
     volumes:
       - .:/app
+    environment:
+      # w Dockerze baza jest pod nazwą usługi db i portem wewnętrznym 5432
+      DB_HOST: db
+      DB_PORT: 5432
+      DB_NAME: ${POSTGRES_DB:-app}
+      DB_USER: ${POSTGRES_USER:-app}
+      DB_PASSWORD: ${POSTGRES_PASSWORD:-app_password}
+    depends_on:
+      db:
+        condition: service_healthy
     extra_hosts:
       - "host.docker.internal:host-gateway"
     networks:
