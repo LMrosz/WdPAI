@@ -3,7 +3,7 @@
 declare(strict_types=1);
 
 /**
- * Pokaz operacji CRUD na repozytorium win (Lab 7).
+ * Pokaz operacji CRUD na repozytorium win (Lab 7, DTO z Lab 8).
  *
  *   docker compose exec php php bin/demo-wines-crud.php            dodaje trzy wina w różnych kategoriach
  *   docker compose exec php php bin/demo-wines-crud.php update     zmienia cenę pierwszego wina demo
@@ -13,6 +13,7 @@ declare(strict_types=1);
  */
 
 use App\Database;
+use App\Dto\WineData;
 use App\Model\Wine;
 use App\Repository\PostgresWineRepository;
 
@@ -20,6 +21,15 @@ require_once dirname(__DIR__) . '/vendor/autoload.php';
 
 $repository = new PostgresWineRepository((new Database())->connect());
 $command = $argv[1] ?? 'add';
+
+/** @return list<WineData> dane win demo; cena pierwszego wina jest parametrem, żeby pokazać edycję */
+$demoData = static fn (float $firstPrice = 69.0): array => [
+    new WineData('Demo Rosé Ogrodowe', Wine::CATEGORY_ROSE, 'Różowe wytrawne', 'Lekkie wino z demo.', $firstPrice,
+        vintage: 2024, abv: 12.0, pairings: ['Sałatki', 'Grillowane warzywa']),
+    new WineData('Demo Bąbelki Brut', Wine::CATEGORY_SPARKLING, 'Musujące brut', 'Musujące wino z demo.', 119.5,
+        vintage: 2022, abv: 12.5, pairings: ['Ostrygi']),
+    new WineData('Demo Biały Półsłodki', Wine::CATEGORY_WHITE, 'Białe półsłodkie', 'Białe wino z demo.', 84.0),
+];
 
 /** @return list<Wine> */
 $demoWines = static fn (): array => array_values(array_filter(
@@ -29,16 +39,8 @@ $demoWines = static fn (): array => array_values(array_filter(
 
 switch ($command) {
     case 'add':
-        $new = [
-            new Wine(0, 'Demo Rosé Ogrodowe', Wine::CATEGORY_ROSE, 'Różowe wytrawne', 'Lekkie wino z demo.', '69 zł',
-                vintage: '2024', abv: '12,0%', pairings: ['Sałatki', 'Grillowane warzywa']),
-            new Wine(0, 'Demo Bąbelki Brut', Wine::CATEGORY_SPARKLING, 'Musujące brut', 'Musujące wino z demo.', '119,50 zł',
-                vintage: '2022', abv: '12,5%', pairings: ['Ostrygi']),
-            new Wine(0, 'Demo Biały Półsłodki', Wine::CATEGORY_WHITE, 'Białe półsłodkie', 'Białe wino z demo.', '84 zł'),
-        ];
-
-        foreach ($new as $wine) {
-            $saved = $repository->save($wine);
+        foreach ($demoData() as $data) {
+            $saved = $repository->create($data);
             echo 'Dodano: #' . $saved->id . ' ' . $saved->name . ' (' . $saved->category . ', ' . $saved->price . ")\n";
         }
         break;
@@ -51,10 +53,9 @@ switch ($command) {
             exit(1);
         }
 
-        $changed = new Wine($wine->id, $wine->name, $wine->category, $wine->type, $wine->notes, '99 zł',
-            $wine->grape, $wine->vintage, $wine->abv, $wine->award, pairings: $wine->pairings);
-        $repository->update($changed);
-        echo 'Zaktualizowano: #' . $wine->id . ' ' . $wine->name . ': ' . $wine->price . ' -> ' . $changed->price . "\n";
+        $repository->update($wine->id, $demoData(99.0)[0]);
+        echo 'Zaktualizowano: #' . $wine->id . ' ' . $wine->name . ': ' . $wine->price . ' -> '
+            . $repository->findById($wine->id)?->price . "\n";
         break;
 
     case 'cleanup':
