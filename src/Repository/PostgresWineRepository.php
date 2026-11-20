@@ -4,7 +4,9 @@ declare(strict_types=1);
 
 namespace App\Repository;
 
+use App\Dto\WineData;
 use App\Model\Wine;
+use App\Service\PriceFormatter;
 use PDO;
 
 /**
@@ -12,7 +14,8 @@ use PDO;
  * a dane opuszczają repozytorium jako obiekty Wine.
  *
  * Wine przechowuje ceny i moc jako gotowe napisy do wyświetlenia („165 zł”, „13,5%”),
- * więc repozytorium składa je z liczb z bazy przy odczycie i rozkłada z powrotem przy zapisie.
+ * więc repozytorium składa je z liczb z bazy przy odczycie. Zapis przyjmuje DTO WineData
+ * z wartościami liczbowymi, bez id; zwracana jest encja Wine odczytana z bazy.
  */
 final class PostgresWineRepository implements WineRepositoryInterface
 {
@@ -65,10 +68,10 @@ final class PostgresWineRepository implements WineRepositoryInterface
     }
 
     /**
-     * Zapisuje nowe wino (INSERT ... RETURNING id) razem z potrawami i zwraca kopię z nadanym id.
-     * Id przekazanego obiektu jest ignorowane.
+     * Dodaje wino razem z potrawami (INSERT ... RETURNING id, w jednej transakcji)
+     * i zwraca encję z nadanym id.
      */
-    public function save(Wine $wine): Wine
+    public function create(WineData $data): Wine
     {
         $this->database->beginTransaction();
 
@@ -80,22 +83,22 @@ final class PostgresWineRepository implements WineRepositoryInterface
                          :aroma, :palate, :finish, :serving, :cellaring, :price)
                  RETURNING id'
             );
-            $statement->execute($this->toParameters($wine));
-            $saved = $wine->withId((int) $statement->fetchColumn());
+            $statement->execute($this->toParameters($data));
+            $id = (int) $statement->fetchColumn();
 
-            $this->replacePairings($saved);
+            $this->replacePairings($id, $data->pairings);
             $this->database->commit();
-
-            return $saved;
         } catch (\Throwable $exception) {
             $this->database->rollBack();
 
             throw $exception;
         }
+
+        return $this->findById($id) ?? throw new \LogicException('Wino zniknęło tuż po zapisie.');
     }
 
-    /** Aktualizuje wino o id z obiektu; zwraca false, gdy takiego wina nie ma. */
-    public function update(Wine $wine): bool
+    /** Zmienia wszystkie pola wina o podanym id; zwraca false, gdy takiego wina nie ma. */
+    public function update(int $id, WineData $data): bool
     {
         $this->database->beginTransaction();
 
@@ -108,12 +111,12 @@ final class PostgresWineRepository implements WineRepositoryInterface
                      price = :price, updated_at = CURRENT_TIMESTAMP
                  WHERE id = :id'
             );
-            $statement->execute($this->toParameters($wine) + ['id' => $wine->id]);
+            $statement->execute($this->toParameters($data) + ['id' => $id]);
 
             $found = $statement->rowCount() > 0;
 
             if ($found) {
-                $this->replacePairings($wine);
+                $this->replacePairings($id, $data->pairings);
             }
 
             $this->database->commit();
@@ -151,7 +154,7 @@ final class PostgresWineRepository implements WineRepositoryInterface
                 'category' => $row['category'],
                 'type' => $row['type'],
                 'notes' => $row['notes'],
-                'price' => $this->formatPrice((string) $row['price']),
+                'price' => PriceFormatter::format((string) $row['price']),
                 'grape' => $row['grape'],
                 'vintage' => $row['vintage'],
                 'abv' => $row['abv'] === null ? null : $this->formatAbv((string) $row['abv']),
@@ -197,67 +200,50 @@ final class PostgresWineRepository implements WineRepositoryInterface
         return $pairings;
     }
 
-    /** Zastępuje potrawy wina listą z obiektu (kasuje stare, wstawia nowe w podanej kolejności). */
-    private function replacePairings(Wine $wine): void
+    /**
+     * Zastępuje potrawy wina podaną listą (kasuje stare, wstawia nowe w podanej kolejności).
+     *
+     * @param list<string> $pairings
+     */
+    private function replacePairings(int $wineId, array $pairings): void
     {
         $delete = $this->database->prepare('DELETE FROM wine_pairings WHERE wine_id = :wine_id');
-        $delete->execute(['wine_id' => $wine->id]);
+        $delete->execute(['wine_id' => $wineId]);
 
         $insert = $this->database->prepare(
             'INSERT INTO wine_pairings (wine_id, sort_order, dish) VALUES (:wine_id, :sort_order, :dish)'
         );
 
-        foreach (array_values($wine->pairings) as $index => $dish) {
-            $insert->execute(['wine_id' => $wine->id, 'sort_order' => $index + 1, 'dish' => $dish]);
+        foreach (array_values($pairings) as $index => $dish) {
+            $insert->execute(['wine_id' => $wineId, 'sort_order' => $index + 1, 'dish' => $dish]);
         }
     }
 
-    /** @return array<string, string|int|null> */
-    private function toParameters(Wine $wine): array
+    /** @return array<string, string|int|float|null> */
+    private function toParameters(WineData $data): array
     {
         return [
-            'name' => $wine->name,
-            'category' => $wine->category,
-            'type' => $wine->type,
-            'grape' => $wine->grape,
-            'vintage' => $wine->vintage === null ? null : (int) $wine->vintage,
-            'abv' => $wine->abv === null ? null : $this->parseNumber($wine->abv),
-            'award' => $wine->award,
-            'notes' => $wine->notes,
-            'story' => $wine->story,
-            'aroma' => $wine->aroma,
-            'palate' => $wine->palate,
-            'finish' => $wine->finish,
-            'serving' => $wine->serving,
-            'cellaring' => $wine->cellaring,
-            'price' => $this->parseNumber($wine->price),
+            'name' => $data->name,
+            'category' => $data->category,
+            'type' => $data->type,
+            'grape' => $data->grape,
+            'vintage' => $data->vintage,
+            'abv' => $data->abv,
+            'award' => $data->award,
+            'notes' => $data->notes,
+            'story' => $data->story,
+            'aroma' => $data->aroma,
+            'palate' => $data->palate,
+            'finish' => $data->finish,
+            'serving' => $data->serving,
+            'cellaring' => $data->cellaring,
+            'price' => $data->price,
         ];
-    }
-
-    /** "165.00" z bazy na "165 zł", "72.50" na "72,50 zł". */
-    private function formatPrice(string $amount): string
-    {
-        $value = (float) $amount;
-        $decimals = floor($value) === $value ? 0 : 2;
-
-        return number_format($value, $decimals, ',', ' ') . ' zł';
     }
 
     /** "13.5" z bazy na "13,5%". */
     private function formatAbv(string $value): string
     {
         return number_format((float) $value, 1, ',', '') . '%';
-    }
-
-    /** Wyciąga liczbę z napisu typu "165 zł" lub "13,5%" i zwraca ją w zapisie z kropką. */
-    private function parseNumber(string $label): string
-    {
-        $number = str_replace(',', '.', preg_replace('/[^\d,.]/', '', $label) ?? '');
-
-        if ($number === '' || !is_numeric($number)) {
-            throw new \InvalidArgumentException('Brak liczby w wartości "' . $label . '"');
-        }
-
-        return $number;
     }
 }

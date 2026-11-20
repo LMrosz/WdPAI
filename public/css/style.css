@@ -537,6 +537,38 @@ input[type="checkbox"] {
   flex: 1;
 }
 
+/* terminy degustacji w karcie: nagłówek jak etykieta, data i wolne miejsca w jednym wierszu */
+.card .card-subtitle {
+  margin-top: var(--space-sm);
+  color: var(--color-muted);
+  font-family: var(--font-sans);
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  line-height: 1.5;
+  text-transform: uppercase;
+}
+
+.card-sessions {
+  display: grid;
+  gap: var(--space-xs);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-size: 0.875rem;
+}
+
+.card-sessions li {
+  display: flex;
+  flex-wrap: wrap;
+  column-gap: var(--space-sm);
+  justify-content: space-between;
+}
+
+.session-seats {
+  color: var(--color-muted);
+}
+
 .card-price {
   display: flex;
   flex-direction: column;
