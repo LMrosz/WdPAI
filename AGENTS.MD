@@ -14,13 +14,13 @@ Docelowe role użytkowników (na razie tylko opisane w komentarzach, bez impleme
 
 Aktualnie aplikacja obsługuje:
 
-- katalog win pod `/wines` z filtrem `?type=` oraz rozbudowaną stronę wina pod `/wines/{id}` (opis, notatki degustacyjne, potrawy, sekcja „Zobacz także”; `WineController`, model `App\Model\Wine`, repozytorium `App\Repository\ContentWineRepository` czytające `config/content.php`); zły format `id` lub `type` daje 400, brak wina 404,
+- katalog win pod `/wines` z filtrem `?type=` oraz rozbudowaną stronę wina pod `/wines/{id}` (opis, notatki degustacyjne, potrawy, sekcja „Zobacz także”; `WineController`, model `App\Model\Wine`, repozytorium `App\Repository\PostgresWineRepository` czytające tabele `wines` i `wine_pairings` z PostgreSQL; `ContentWineRepository` z `config/content.php` to druga implementacja tego samego interfejsu); zły format `id` lub `type` daje 400, brak wina 404,
 - stronę główną pod `/` (`DefaultController::index`) — hero z opisem posiadłości i kartami statystyk, dane na razie zapisane na sztywno w kontrolerze,
 - formularze logowania (`/login`) i rejestracji (`/register`) w `SecurityController` z trasami GET i POST — walidacja po stronie serwera przez `Validator`, błędy z kodem 422 i komunikatami przy polach, przekierowanie 303 po sukcesie; bez uwierzytelniania, sesji i zapisu konta,
 - strony błędów 400, 404 i 500 (`ErrorController::show`, widok `error.html.php`); router rzuca `NotFoundException`, a front controller zamienia `HttpException` na stronę błędu,
 - walidację formularzy po stronie serwera (`App\Service\Validator`, komunikaty w `config/content.php` pod kluczem `validation`).
 
-Nie ma jeszcze logowania, sesji, rezerwacji ani bazy danych (wina pochodzą z pliku, nie z bazy) — nie opisuj ich jako istniejących.
+Baza PostgreSQL jest podłączona tylko dla win (`wines`, `wine_pairings`). Tabele `users`, `roles`, `tastings`, `tasting_wines`, `tasting_sessions` i `reservations` istnieją w schemacie, ale aplikacja jeszcze ich nie używa: nie ma uwierzytelniania, sesji ani rezerwacji, a degustacje na `/tastings` nadal pochodzą z `config/content.php` — nie opisuj ich jako istniejących.
 
 ## Stack technologiczny
 
@@ -35,8 +35,11 @@ Nie ma jeszcze logowania, sesji, rezerwacji ani bazy danych (wina pochodzą z pl
 
 ```text
 .
+├── bin/                       # skrypty CLI, np. demo-wines-crud.php (uruchamiane w kontenerze php)
+├── config/                    # content.php (teksty i dane marki), database.php (połączenie z bazą ze zmiennych środowiskowych)
+├── database/                  # skrypty SQL: 01-schema, 02-indexes, 03-seed (wykonywane raz przy pierwszym starcie bazy)
 ├── docker/
-│   ├── db/                    # obraz PostgreSQL (+ skrypty inicjalizujące)
+│   ├── db/                    # obraz PostgreSQL
 │   ├── nginx/                 # obraz i konfiguracja Nginx
 │   └── php/                   # obraz PHP-FPM, rozszerzenia PHP i Composer
 ├── public/                    # jedyny publicznie dostępny katalog
@@ -51,7 +54,8 @@ Nie ma jeszcze logowania, sesji, rezerwacji ani bazy danych (wina pochodzą z pl
 │   ├── controllers/           # App\Controller\* (AppController, Default, Security, Error itd.)
 │   ├── Exception/             # App\Exception\* — HttpException, BadRequestException, NotFoundException
 │   ├── Model/                 # App\Model\* — Wine
-│   ├── Repository/            # App\Repository\* — WineRepositoryInterface, ContentWineRepository
+│   ├── Database.php           # App\Database — jedyne miejsce tworzące połączenie PDO
+│   ├── Repository/            # App\Repository\* — WineRepositoryInterface, PostgresWineRepository, ContentWineRepository
 │   ├── Service/               # App\Service\* — SiteContent, Validator
 │   └── Routing.php            # App\Routing — rejestracja i obsługa tras
 ├── AGENTS.MD                  # ten plik
@@ -66,7 +70,7 @@ Usługi Docker Compose:
 |---|---|---|
 | `server` | Nginx, document root `public/` | `8080` |
 | `php` | PHP-FPM z Xdebugiem (przy starcie wykonuje `composer dump-autoload`) | Xdebug: `9003` (połączenie z IDE) |
-| `db` | PostgreSQL | `POSTGRES_PORT` (domyślnie `5433`) |
+| `db` | PostgreSQL (z healthcheckiem; kod PHP łączy się przez `db:5432`, a `5433` jest dla klientów na hoście) | `POSTGRES_PORT` (domyślnie `5433`) |
 | `mailpit` | podgląd wysyłanych e-maili (dev) | `MAILPIT_PORT` (domyślnie `8025`) |
 | `pgadmin-wdpai` | panel administracyjny bazy | `PGADMIN_PORT` (domyślnie `5050`) |
 
@@ -119,13 +123,13 @@ Kontroler powinien być cienki. Nie umieszczaj w nim rozbudowanych zapytań do b
 
 ### Model
 
-Warstwa Model jest na razie minimalna (`Wine` i repozytorium z pliku). Usługa PostgreSQL istnieje w Docker Compose, ale aplikacja jeszcze się z nią nie łączy. Nie udawaj, że dane widoczne w widokach pochodzą z bazy danych. Gdy funkcja wymaga trwałego przechowywania danych, wydziel klasy modelu/repozytorium zamiast dodawać zapytania SQL do kontrolera.
+Warstwa Model jest na razie niewielka: `Wine` i repozytoria win. Połączenie PDO tworzy wyłącznie `App\Database`, a cały SQL dotyczący win jest w `PostgresWineRepository` (prepared statements z parametrami, nigdy konkatenacja danych do SQL). Gdy funkcja wymaga trwałego przechowywania danych, wydziel klasy modelu/repozytorium zamiast dodawać zapytania SQL do kontrolera. Zmiany schematu zapisuj w `database/` jako nowe, numerowane pliki SQL, a nie przez edycję wykonanych skryptów.
 
 Dla nowych klas zgodnych z mapowaniem `App\` w Composerze preferuj katalogi i nazwy klas o zgodnej wielkości liter, np.:
 
 ```text
 src/Model/Wine.php                   -> App\Model\Wine
-src/Repository/ContentWineRepository.php -> App\Repository\ContentWineRepository
+src/Repository/PostgresWineRepository.php -> App\Repository\PostgresWineRepository
 ```
 
 Po dodaniu lub przeniesieniu klas odśwież autoloader poleceniem `composer dump-autoload`.
