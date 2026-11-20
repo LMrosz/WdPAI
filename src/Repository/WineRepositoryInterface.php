@@ -6,7 +6,7 @@ namespace App\Repository;
 
 use App\Model\Wine;
 
-/** Źródło win, treść z pliku — kontrolery zależą tylko od tego interfejsu. */
+/** Źródło win (baza PostgreSQL albo plik z treścią) — kontrolery zależą tylko od tego interfejsu. */
 interface WineRepositoryInterface
 {
     /**

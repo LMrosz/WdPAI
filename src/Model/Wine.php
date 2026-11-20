@@ -67,6 +67,30 @@ final readonly class Wine
         );
     }
 
+    /** Kopia wina z innym identyfikatorem, np. po nadaniu id przez bazę (obiekt jest tylko do odczytu). */
+    public function withId(int $id): self
+    {
+        return new self(
+            id: $id,
+            name: $this->name,
+            category: $this->category,
+            type: $this->type,
+            notes: $this->notes,
+            price: $this->price,
+            grape: $this->grape,
+            vintage: $this->vintage,
+            abv: $this->abv,
+            award: $this->award,
+            story: $this->story,
+            aroma: $this->aroma,
+            palate: $this->palate,
+            finish: $this->finish,
+            serving: $this->serving,
+            cellaring: $this->cellaring,
+            pairings: $this->pairings,
+        );
+    }
+
     /** Czy wino ma notatki degustacyjne (aromat, smak lub finisz). */
     public function hasTastingNotes(): bool
     {
