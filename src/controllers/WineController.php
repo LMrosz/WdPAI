@@ -4,10 +4,11 @@ declare(strict_types=1);
 
 namespace App\Controller;
 
+use App\Database;
 use App\Exception\BadRequestException;
 use App\Exception\NotFoundException;
 use App\Model\Wine;
-use App\Repository\ContentWineRepository;
+use App\Repository\PostgresWineRepository;
 use App\Repository\WineRepositoryInterface;
 
 final class WineController extends AppController
@@ -16,7 +17,7 @@ final class WineController extends AppController
 
     public function __construct(?WineRepositoryInterface $wines = null)
     {
-        $this->wines = $wines ?? new ContentWineRepository($this->content());
+        $this->wines = $wines ?? new PostgresWineRepository((new Database())->connect());
     }
 
     /**
