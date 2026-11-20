@@ -8,14 +8,14 @@ VinoKeep to aplikacja webowa dla winnic: prezentuje ofertę (wina, degustacje, h
 |---|---|---|
 | Strona startowa (`/`) | Hero, statystyki winnicy, przyciski do głównych sekcji | gotowe |
 | Nasze wina (`/wines`) | Katalog win w siatce kart, filtr rodzaju (`?type=`) i rozbudowana strona szczegółów wina (`/wines/{id}`: opis, notatki degustacyjne, potrawy, temperatura podawania, leżakowanie, karta z ceną i sekcja „Zobacz także”) | gotowe (dane z PostgreSQL) |
-| Degustacje (`/tastings`) | Oferty degustacji i kroki rezerwacji | gotowe (bez rezerwacji) |
+| Degustacje (`/tastings`) | Oferty degustacji z winami i najbliższymi terminami (wolne miejsca liczone z rezerwacji), kroki rezerwacji | gotowe, dane z bazy (bez rezerwacji) |
 | O winnicy (`/about`) | Historia, fakty i cechy posiadłości | gotowe |
 | Logowanie (`/login`) | Formularz z walidacją po stronie serwera (błędy przy polach, kod 422, wpisany e-mail zostaje), przekierowanie na `/` po poprawnym wysłaniu | tymczasowo, bez uwierzytelniania |
 | Rejestracja (`/register`) | Formularz z walidacją e-maila i hasła (długość, litera, cyfra, znak specjalny, powtórzenie), przekierowanie na `/login` po poprawnym wysłaniu | tymczasowo, konto nie jest jeszcze zapisywane |
 | Teksty serwisu | Wszystkie napisy i nazwa marki w `config/content.php` | gotowe |
 | Motyw jasny/ciemny | Przełącznik w nagłówku: tryb systemowy, jasny lub ciemny, wybór zapamiętany w przeglądarce | gotowe |
 | Dostępność (WCAG) | Semantyczne znaczniki, widoczny fokus, kontrast sprawdzony w obu motywach narzędziem axe | częściowo, pełny audyt planowany w przyszłości |
-| Baza PostgreSQL | Schemat z 8 tabelami (użytkownicy, role, wina, degustacje, rezerwacje), indeksy, dane demonstracyjne i repozytorium win przez PDO | gotowe, aplikacja czyta z bazy wina, a pozostałe tabele czekają na kolejne funkcje |
+| Baza PostgreSQL | Schemat z 8 tabelami (użytkownicy, role, wina, degustacje, rezerwacje), indeksy, dane demonstracyjne i warstwa danych przez PDO (encje, repozytoria, DTO, Value Object) | gotowe, aplikacja czyta z bazy wina i degustacje, a konta i rezerwacje czekają na logowanie |
 | Role użytkowników, rezerwacje, upload, panel admina | Prawdziwe logowanie, rezerwacje, edycja treści | planowane w przyszłości |
 
 ## Tech stack
@@ -49,7 +49,7 @@ Przy pierwszym starcie z pustym wolumenem bazy tabele i dane demonstracyjne twor
 
 ## Baza danych (PostgreSQL)
 
-Wina są przechowywane w PostgreSQL. Połączenie PDO tworzy w jednym miejscu klasa `App\Database` (konfiguracja ze zmiennych środowiskowych w `config/database.php`), a cały SQL dotyczący win jest w `App\Repository\PostgresWineRepository`. Dane opuszczają repozytorium jako obiekty `App\Model\Wine`.
+Wina są przechowywane w PostgreSQL. Połączenie PDO tworzy w jednym miejscu klasa `App\Database` (konfiguracja ze zmiennych środowiskowych w `config/database.php`), a cały SQL jest w repozytoriach z `App\Repository` (osobno wina, degustacje i użytkownicy). Dane opuszczają repozytorium jako obiekty z `App\Model`, opisane w sekcji „Warstwa danych”.
 
 ### Model relacyjny
 
@@ -144,7 +144,7 @@ erDiagram
 | `tasting_sessions` | Terminy degustacji z liczbą miejsc | jeden termin na degustację i godzinę |
 | `reservations` | Rezerwacje gości na terminy | 1–12 miejsc, status `confirmed` lub `cancelled`, jedna rezerwacja użytkownika na termin |
 
-Aplikacja czyta dziś tylko `wines` i `wine_pairings`. Pozostałe tabele są przygotowane pod logowanie, role i rezerwacje. Każdy klucz obcy ma jawną akcję `ON DELETE` i `ON UPDATE`: potrawy i powiązania degustacji znikają razem z rodzicem (`CASCADE`), a rola i termin z rezerwacjami nie mogą zostać usunięte (`RESTRICT`). Limit miejsc w terminie nie da się zapisać w `CHECK`, więc ma go pilnować transakcja w aplikacji.
+Aplikacja czyta dziś `wines`, `wine_pairings`, `tastings`, `tasting_wines` i `tasting_sessions`, a `users` i `roles` ma w repozytorium użytkowników (jeszcze bez logowania). `reservations` służy na razie tylko do liczenia wolnych miejsc w terminach. Każdy klucz obcy ma jawną akcję `ON DELETE` i `ON UPDATE`: potrawy i powiązania degustacji znikają razem z rodzicem (`CASCADE`), a rola i termin z rezerwacjami nie mogą zostać usunięte (`RESTRICT`). Limit miejsc w terminie nie da się zapisać w `CHECK`, więc ma go pilnować transakcja w aplikacji.
 
 Indeksy poza kluczami głównymi i ograniczeniami `UNIQUE` (PostgreSQL nie tworzy ich dla kluczy obcych sam): `wines (category)` dla filtra `?type=`, `users (role_id)`, `tasting_wines (wine_id)`, `tasting_sessions (starts_at)`, `reservations (user_id, created_at DESC)` oraz indeks częściowy `reservations (session_id) WHERE status = 'confirmed'`.
 
@@ -167,6 +167,32 @@ docker compose exec db psql -U app -d app -v ON_ERROR_STOP=1 \
 
 Skrypty nie są powtarzalne (tworzą tabele). Aby zacząć od zera i skasować dane bazy: `docker compose down -v`, a potem `docker compose up -d`.
 
+### Warstwa danych (Lab 8)
+
+Wynik zapytania (tablica z `FETCH_ASSOC`) zamieniamy ręcznie na obiekt w repozytorium, więc widoki i kontrolery nie znają nazw kolumn. Mapowanie jest ręczne, a nie przez `FETCH_CLASS`, bo `FETCH_CLASS` omija konstruktor i wymaga publicznych, modyfikowalnych pól, a nasze obiekty są niezmienne (`readonly`) i mają typy w konstruktorze.
+
+| Rodzaj | Klasy | Rola |
+|--------|-------|------|
+| Entity (ma tożsamość: `id`) | `Wine`, `User`, `Tasting`, `TastingSession` | wiersz z bazy jako obiekt z typami i drobną logiką (`Tasting::durationLabel()`, `TastingSession::seatsFree()`, `User::verifyPassword()`) |
+| DTO (pojemnik bez logiki) | `App\Dto\WineData`, `TastedWine` | `WineData` niesie dane wina do zapisu (nowe wino nie ma jeszcze `id`), `TastedWine` to skrót wina na liście degustacji |
+| Value Object (liczy się wartość) | `App\Model\Email`, `Role` (enum) | `Email` jest niezmienny, normalizuje adres do małych liter i waliduje się w konstruktorze, więc każdy obiekt jest poprawny |
+
+Repozytoria (interfejs plus implementacja dla PostgreSQL):
+
+| Interfejs | Implementacja | Zapytania |
+|-----------|---------------|-----------|
+| `WineRepositoryInterface` | `PostgresWineRepository` (oraz `ContentWineRepository` z pliku) | odczyt win, `create(WineData)`, `update(id, WineData)` i `delete(id)` w transakcjach |
+| `UserRepositoryInterface` | `PostgresUserRepository` | `users JOIN roles`, `create` (duplikat adresu rzuca `EmailAlreadyUsedException`), `delete` |
+| `TastingRepositoryInterface` | `PostgresTastingRepository` | `tasting_wines JOIN wines` oraz `tasting_sessions LEFT JOIN reservations` z `GROUP BY` do wolnych miejsc |
+
+Kontrolery dostają repozytorium przez konstruktor (domyślnie wersję dla PostgreSQL), więc w testach i w kolejnych laboratoriach można je podmienić. Formatowanie cen w jednym miejscu robi `App\Service\PriceFormatter`.
+
+Skrypty pokazowe uruchamiane w kontenerze `php`:
+
+```bash
+docker compose exec php php bin/demo-repositories.php   # Email, użytkownicy z rolą, degustacje z terminami (konto demo jest od razu usuwane)
+```
+
 ### Sprawdzenie połączenia i bazy
 
 ```bash
@@ -182,7 +208,7 @@ docker compose exec db psql -U app -d app -c "INSERT INTO wines (name, category,
 # ERROR:  new row for relation "wines" violates check constraint "wines_category_check"
 ```
 
-Operacje CRUD na repozytorium pokazuje skrypt `bin/demo-wines-crud.php`. Dodane wina od razu widać na `/wines`, a odświeżenie strony ich nie usuwa, bo leżą w bazie:
+Operacje CRUD na repozytorium pokazuje skrypt `bin/demo-wines-crud.php` (dane wina przekazuje przez DTO `WineData`). Dodane wina od razu widać na `/wines`, a odświeżenie strony ich nie usuwa, bo leżą w bazie:
 
 ```bash
 docker compose exec php php bin/demo-wines-crud.php           # dodaje 3 wina w różnych kategoriach
@@ -239,7 +265,8 @@ W PhpStorm wystarczy w ustawieniach PHP dodać serwer `localhost:8080` z mapowan
 ```text
 my-app/
 ├── bin/
-│   └── demo-wines-crud.php  # pokaz operacji CRUD na repozytorium win
+│   ├── demo-repositories.php # pokaz warstwy danych: użytkownicy, Value Object Email, degustacje
+│   └── demo-wines-crud.php  # pokaz operacji CRUD na repozytorium win (DTO WineData)
 ├── config/
 │   ├── content.php          # wszystkie teksty i dane marki (domyślnie Corvo Bianco)
 │   └── database.php         # dane połączenia z bazą (ze zmiennych środowiskowych)
@@ -257,9 +284,11 @@ my-app/
 │   ├── Database.php         # tworzy połączenie PDO z PostgreSQL
 │   ├── Routing.php          # router
 │   ├── Exception/           # HttpException i wyjątki 400 oraz 404
-│   ├── Model/Wine.php       # wino jako obiekt tylko do odczytu
-│   ├── Repository/          # WineRepositoryInterface, PostgresWineRepository (baza) i ContentWineRepository (plik)
+│   ├── Dto/WineData.php     # DTO z danymi wina do zapisu
+│   ├── Model/               # encje (Wine, User, Tasting, TastingSession), Value Object Email, enum Role, TastedWine
+│   ├── Repository/          # interfejsy i implementacje dla PostgreSQL (wina, użytkownicy, degustacje) oraz ContentWineRepository (plik)
 │   ├── Service/
+│   │   ├── PriceFormatter.php # formatowanie kwot z bazy („165 zł”)
 │   │   ├── SiteContent.php  # odczyt tekstów z config/content.php
 │   │   └── Validator.php    # walidacja danych z formularzy po stronie serwera
 │   └── controllers/         # kontrolery (AppController jako baza, ErrorController dla stron błędów)
@@ -297,7 +326,7 @@ Wygląd obu motywów opisują zmienne CSS w `public/css/style.css`: motyw jasny 
 
 Trasa może mieć parametr w klamrach, np. `/wines/{id}`. Router przekazuje go do akcji kontrolera jako tekst, a format sprawdza kontroler. Dzięki temu `/wines/abc` daje 400 (zły format), a `/wines/999` 404 (poprawny format, ale nie ma takiego wina). Parametry z query string (`?type=`) kontroler też waliduje i przy nieznanej wartości rzuca `BadRequestException`.
 
-Kontroler korzysta z `WineRepositoryInterface`, więc źródło win można podmienić bez zmian w jego logice. Domyślnie działa `PostgresWineRepository`, a identyfikator wina to `id` z tabeli `wines`. `ContentWineRepository` (lista z `config/content.php`, id to numer na liście) pozostaje jako druga implementacja tego samego interfejsu.
+Kontroler korzysta z `WineRepositoryInterface` (a `TastingController` z `TastingRepositoryInterface`), więc źródło win można podmienić bez zmian w jego logice. Domyślnie działa `PostgresWineRepository`, a identyfikator wina to `id` z tabeli `wines`. `ContentWineRepository` (lista z `config/content.php`, id to numer na liście) pozostaje jako druga implementacja tego samego interfejsu.
 
 ## Obsługa błędów
 
@@ -319,7 +348,7 @@ Limity pól: e-mail do 254 znaków, hasło od 8 do 64 znaków, z literą, cyfrą
 
 ## Zmiana tekstów i marki
 
-Nazwa winnicy, hasło, nazwa platformy, nawigacja, opisy i lista win są w `config/content.php`. W tekstach można używać znaczników w stylu `{site.name}`, które są podstawiane z konfiguracji. Aby przygotować serwis dla innej winnicy, wystarczy podmienić ten plik; docelowo edycję przejmie panel administratora.
+Nazwa winnicy, hasło, nazwa platformy, nawigacja i teksty interfejsu są w `config/content.php`. W tekstach można używać znaczników w stylu `{site.name}`, które są podstawiane z konfiguracji. Wina i degustacje (nazwy, opisy, ceny, terminy) pochodzą z bazy, czyli z `database/03-seed.sql`. Aby przygotować serwis dla innej winnicy, trzeba podmienić oba pliki; docelowo edycję przejmie panel administratora.
 
 ## Zasady developmentu
 

@@ -20,7 +20,7 @@ Aktualnie aplikacja obsługuje:
 - strony błędów 400, 404 i 500 (`ErrorController::show`, widok `error.html.php`); router rzuca `NotFoundException`, a front controller zamienia `HttpException` na stronę błędu,
 - walidację formularzy po stronie serwera (`App\Service\Validator`, komunikaty w `config/content.php` pod kluczem `validation`).
 
-Baza PostgreSQL jest podłączona tylko dla win (`wines`, `wine_pairings`). Tabele `users`, `roles`, `tastings`, `tasting_wines`, `tasting_sessions` i `reservations` istnieją w schemacie, ale aplikacja jeszcze ich nie używa: nie ma uwierzytelniania, sesji ani rezerwacji, a degustacje na `/tastings` nadal pochodzą z `config/content.php` — nie opisuj ich jako istniejących.
+Baza PostgreSQL jest podłączona dla win (`wines`, `wine_pairings`) i degustacji (`tastings`, `tasting_wines`, `tasting_sessions`, wolne miejsca liczone z `reservations`). `users` i `roles` ma `PostgresUserRepository`, ale aplikacja jeszcze go nie używa: nie ma uwierzytelniania, sesji, zapisu kont ani rezerwacji — nie opisuj ich jako istniejących.
 
 ## Stack technologiczny
 
@@ -35,7 +35,7 @@ Baza PostgreSQL jest podłączona tylko dla win (`wines`, `wine_pairings`). Tabe
 
 ```text
 .
-├── bin/                       # skrypty CLI, np. demo-wines-crud.php (uruchamiane w kontenerze php)
+├── bin/                       # skrypty CLI: demo-wines-crud.php, demo-repositories.php (uruchamiane w kontenerze php)
 ├── config/                    # content.php (teksty i dane marki), database.php (połączenie z bazą ze zmiennych środowiskowych)
 ├── database/                  # skrypty SQL: 01-schema, 02-indexes, 03-seed (wykonywane raz przy pierwszym starcie bazy)
 ├── docker/
@@ -53,10 +53,11 @@ Baza PostgreSQL jest podłączona tylko dla win (`wines`, `wine_pairings`). Tabe
 ├── src/
 │   ├── controllers/           # App\Controller\* (AppController, Default, Security, Error itd.)
 │   ├── Exception/             # App\Exception\* — HttpException, BadRequestException, NotFoundException
-│   ├── Model/                 # App\Model\* — Wine
+│   ├── Dto/                   # App\Dto\* — WineData (DTO do zapisu)
+│   ├── Model/                 # App\Model\* — Wine, User, Tasting, TastingSession, TastedWine, Email (Value Object), Role (enum)
 │   ├── Database.php           # App\Database — jedyne miejsce tworzące połączenie PDO
-│   ├── Repository/            # App\Repository\* — WineRepositoryInterface, PostgresWineRepository, ContentWineRepository
-│   ├── Service/               # App\Service\* — SiteContent, Validator
+│   ├── Repository/            # App\Repository\* — interfejsy i implementacje PostgreSQL: Wine, User, Tasting (+ ContentWineRepository)
+│   ├── Service/               # App\Service\* — SiteContent, Validator, PriceFormatter
 │   └── Routing.php            # App\Routing — rejestracja i obsługa tras
 ├── AGENTS.MD                  # ten plik
 ├── README.md                  # opis projektu dla ludzi
@@ -123,7 +124,7 @@ Kontroler powinien być cienki. Nie umieszczaj w nim rozbudowanych zapytań do b
 
 ### Model
 
-Warstwa Model jest na razie niewielka: `Wine` i repozytoria win. Połączenie PDO tworzy wyłącznie `App\Database`, a cały SQL dotyczący win jest w `PostgresWineRepository` (prepared statements z parametrami, nigdy konkatenacja danych do SQL). Gdy funkcja wymaga trwałego przechowywania danych, wydziel klasy modelu/repozytorium zamiast dodawać zapytania SQL do kontrolera. Zmiany schematu zapisuj w `database/` jako nowe, numerowane pliki SQL, a nie przez edycję wykonanych skryptów.
+Warstwa Model: encje (`Wine`, `User`, `Tasting`, `TastingSession`) mają tożsamość i są niezmienne, DTO (`App\Dto\WineData`, `TastedWine`) tylko przenoszą dane, a Value Object (`Email`) waliduje się w konstruktorze. Wynik zapytania mapuj na obiekt w repozytorium ręcznie (nie `FETCH_CLASS`, bo omija konstruktor i wymaga publicznych pól). Połączenie PDO tworzy wyłącznie `App\Database`, a cały SQL jest w repozytoriach (`PostgresWineRepository`, `PostgresUserRepository`, `PostgresTastingRepository`) (prepared statements z parametrami, nigdy konkatenacja danych do SQL). Gdy funkcja wymaga trwałego przechowywania danych, wydziel klasy modelu/repozytorium zamiast dodawać zapytania SQL do kontrolera. Zmiany schematu zapisuj w `database/` jako nowe, numerowane pliki SQL, a nie przez edycję wykonanych skryptów.
 
 Dla nowych klas zgodnych z mapowaniem `App\` w Composerze preferuj katalogi i nazwy klas o zgodnej wielkości liter, np.:
 
