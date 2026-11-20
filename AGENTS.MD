@@ -172,7 +172,7 @@ Cały wygląd mieści się w jednym arkuszu `public/css/style.css`, zgodnym z sy
 - Dane przekazuj do widoku jawnie w tablicy drugiego argumentu `render()` (każdy widok dostaje m.in. `pageTitle`).
 - Nie twórz globalnego stanu i nie używaj `$_GET`, `$_POST` ani `$_SERVER` poza warstwą wejścia, jeżeli dane można przekazać jako argument.
 - Nie dodawaj frameworka ani dużej biblioteki bez wyraźnej potrzeby i zgody użytkownika.
-- Sekrety umieszczaj w `.env`; nigdy nie commituj haseł, tokenów ani danych dostępowych.
+- Sekrety umieszczaj w `.env`; nigdy nie commituj haseł, tokenów ani danych dostępowych. Nowa zmienna środowiskowa trafia też do `.env.example` (bez prawdziwej wartości) i do README.
 - Nie edytuj `vendor/` ręcznie.
 - Zachowuj zakres zadania i nie zmieniaj niezwiązanych plików.
 - Pliki w repozytorium mają końcówki linii zgodne z ustawieniami użytkownika (Windows, CRLF w katalogu roboczym) — nie zmieniaj ich masowo.

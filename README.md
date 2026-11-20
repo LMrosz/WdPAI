@@ -34,6 +34,7 @@ VinoKeep to aplikacja webowa dla winnic: prezentuje ofertę (wina, degustacje, h
 ```bash
 git clone https://github.com/LMrosz/WdPAI.git
 cd my-app
+cp .env.example .env
 docker compose up --build -d
 ```
 
@@ -43,7 +44,7 @@ docker compose up --build -d
 | Mailpit | http://localhost:8025 |
 | pgAdmin | http://localhost:5050 |
 
-Porty i dane dostępowe bazy można zmienić zmiennymi środowiskowymi (np. w pliku `.env`): `POSTGRES_PORT`, `POSTGRES_DB`, `POSTGRES_USER`, `POSTGRES_PASSWORD`, `MAILPIT_PORT`, `PGADMIN_PORT`. Zatrzymanie: `docker compose down`.
+Porty i dane dostępowe są w pliku `.env`, który powstaje z wzoru `.env.example` (sam `.env` jest w `.gitignore`): `POSTGRES_DB`, `POSTGRES_USER`, `POSTGRES_PASSWORD`, `POSTGRES_PORT`, `MAILPIT_PORT`, `PGADMIN_PORT`, `PGADMIN_DEFAULT_EMAIL` i `PGADMIN_DEFAULT_PASSWORD`. Bez pliku `.env` compose używa tych samych wartości domyślnych. Zatrzymanie: `docker compose down`.
 
 Przy pierwszym starcie z pustym wolumenem bazy tabele i dane demonstracyjne tworzą się same. Jeśli wolumen `pg-data` już istnieje, trzeba załadować schemat ręcznie (patrz „Baza danych”).
 
