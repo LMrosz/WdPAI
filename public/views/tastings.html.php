@@ -7,16 +7,34 @@
         </header>
 
         <ul class="catalog">
-            <?php foreach ($offers as $offer): ?>
+            <?php foreach ($tastings as $tasting): ?>
                 <li>
                     <article class="card">
-                        <?php if (!empty($offer['badge'])): ?>
-                            <p class="card-badge"><?= $e($offer['badge']) ?></p>
+                        <?php if ($tasting->badge !== null): ?>
+                            <p class="card-badge"><?= $e($tasting->badge) ?></p>
                         <?php endif; ?>
-                        <h2><?= $e($offer['name']) ?></h2>
-                        <p class="card-meta"><?= $t('tastings.duration_label') ?>: <?= $e($offer['duration']) ?> • <?= $e($offer['group']) ?></p>
-                        <p class="card-text"><?= $e($content->fill($offer['description'])) ?></p>
-                        <p class="card-price"><?= $e($offer['price']) ?></p>
+                        <h2><?= $e($tasting->name) ?></h2>
+                        <p class="card-meta"><?= $t('tastings.duration_label') ?>: <?= $e($tasting->durationLabel()) ?> • <?= $t('tastings.group_label', ['count' => $tasting->maxGroupSize]) ?></p>
+                        <p class="card-text"><?= $e($tasting->description) ?></p>
+                        <?php if ($tasting->wines !== []): ?>
+                            <p class="card-meta"><?= $t('tastings.wines_label') ?>: <?= $e(implode(', ', array_map(static fn ($wine): string => $wine->title, $tasting->wines))) ?></p>
+                        <?php endif; ?>
+                        <h3 class="card-subtitle"><?= $t('tastings.sessions_label') ?></h3>
+                        <?php if ($tasting->sessions === []): ?>
+                            <p class="card-meta"><?= $t('tastings.sessions_empty') ?></p>
+                        <?php else: ?>
+                            <ul class="card-sessions">
+                                <?php foreach ($tasting->sessions as $session): ?>
+                                    <li>
+                                        <span class="session-date"><?= $e($session->startsAtLabel()) ?></span>
+                                        <span class="session-seats"><?= $session->seatsFree() > 0
+                                            ? $t('tastings.seats_free', ['free' => $session->seatsFree(), 'total' => $session->seatsTotal])
+                                            : $t('tastings.seats_none') ?></span>
+                                    </li>
+                                <?php endforeach; ?>
+                            </ul>
+                        <?php endif; ?>
+                        <p class="card-price"><?= $t('tastings.price_per_person', ['price' => $tasting->pricePerPerson]) ?></p>
                     </article>
                 </li>
             <?php endforeach; ?>
