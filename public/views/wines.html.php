@@ -5,6 +5,7 @@
  * @var list<App\Model\Wine> $wines
  * @var array<string, string> $filters etykiety filtrów (klucz all + kategorie)
  * @var string $activeFilter
+ * @var bool $canManageWines czy zalogowana rola może dodawać wina
  */
 ?>
 <main class="page catalog-page">
@@ -13,6 +14,9 @@
             <p class="eyebrow"><?= $t('wines.eyebrow') ?></p>
             <h1 id="wines-title"><?= $t('wines.title') ?></h1>
             <p><?= $t('wines.intro') ?></p>
+            <?php if ($canManageWines): ?>
+                <p><a class="button" href="/wines/new"><?= $t('wines.form.add_link') ?></a></p>
+            <?php endif; ?>
         </header>
 
         <nav class="filter" aria-label="<?= $t('wines.filter_label') ?>">
