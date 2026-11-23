@@ -7,7 +7,17 @@
                 <li><a href="/wines"<?= $activePage === 'wines' ? ' aria-current="page"' : '' ?>><?= $t('nav.wines') ?></a></li>
                 <li><a href="/tastings"<?= $activePage === 'tastings' ? ' aria-current="page"' : '' ?>><?= $t('nav.tastings') ?></a></li>
                 <li><a href="/about"<?= $activePage === 'about' ? ' aria-current="page"' : '' ?>><?= $t('nav.about') ?></a></li>
-                <li><a href="/login"<?= $activePage === 'login' ? ' aria-current="page"' : '' ?>><?= $t('nav.login') ?></a></li>
+                <?php if ($authUser !== null): ?>
+                    <li><a href="/account"<?= $activePage === 'account' ? ' aria-current="page"' : '' ?>><?= $t('nav.account') ?></a></li>
+                    <li>
+                        <form action="/logout" method="post" class="logout-form">
+                            <?php require __DIR__ . '/csrf-field.html.php'; ?>
+                            <button type="submit" class="link-button"><?= $t('nav.logout') ?></button>
+                        </form>
+                    </li>
+                <?php else: ?>
+                    <li><a href="/login"<?= $activePage === 'login' ? ' aria-current="page"' : '' ?>><?= $t('nav.login') ?></a></li>
+                <?php endif; ?>
             </ul>
         </nav>
         <button type="button" class="theme-toggle"

@@ -3,7 +3,9 @@
  * @var string $formAction
  * @var array<string, string> $errors nazwa pola => komunikat
  * @var array<string, string> $old wcześniej wpisane wartości
- * @var bool $registered czy użytkownik wraca po wysłaniu rejestracji
+ * @var string|null $formError ogólny błąd formularza (zły adres lub hasło)
+ * @var bool $registered czy użytkownik wraca po założeniu konta
+ * @var bool $loggedOut czy użytkownik wraca po wylogowaniu
  */
 $fields = [
     ['name' => 'email', 'type' => 'email', 'label' => $content->text('login.email'),
@@ -19,19 +21,24 @@ $labels = array_column($fields, 'label', 'name');
         <?php if ($registered): ?>
             <p class="form-status" role="status"><?= $t('login.registered') ?></p>
         <?php endif; ?>
+        <?php if ($loggedOut): ?>
+            <p class="form-status" role="status"><?= $t('login.logged_out') ?></p>
+        <?php endif; ?>
         <p class="auth-intro"><?= $t('login.intro') ?></p>
 
         <form action="<?= $e($formAction) ?>" method="post" novalidate>
+            <?php require __DIR__ . '/partials/csrf-field.html.php'; ?>
+            <?php if ($formError !== null): ?>
+                <div class="form-errors" role="alert">
+                    <p class="form-errors-title"><?= $e($formError) ?></p>
+                </div>
+            <?php endif; ?>
             <?php require __DIR__ . '/partials/form-errors.html.php'; ?>
             <fieldset>
                 <legend><?= $t('login.legend') ?></legend>
                 <?php foreach ($fields as $field): ?>
                     <?php require __DIR__ . '/partials/form-field.html.php'; ?>
                 <?php endforeach; ?>
-                <p class="form-check">
-                    <input type="checkbox" id="remember" name="remember">
-                    <label for="remember"><?= $t('login.remember') ?></label>
-                </p>
             </fieldset>
             <button type="submit" class="button button-block"><?= $t('login.submit') ?></button>
         </form>

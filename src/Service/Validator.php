@@ -57,6 +57,17 @@ final class Validator
         );
     }
 
+    /** Maksymalna długość w bajtach (np. bcrypt uwzględnia tylko pierwsze 72 bajty hasła). */
+    public function maxBytes(string $field, int $max): self
+    {
+        return $this->check(
+            $field,
+            'max_bytes',
+            static fn (string $value): bool => strlen($value) <= $max,
+            ['max' => $max],
+        );
+    }
+
     /** Wartość pola musi być taka sama jak wartość pola $otherField (np. powtórzone hasło). */
     public function matches(string $field, string $otherField): self
     {
@@ -85,6 +96,56 @@ final class Validator
             $field,
             'special_character',
             static fn (string $value): bool => $value === '' || preg_match('/[^\p{L}\d\s]/u', $value) === 1,
+        );
+    }
+
+    /** Wartość musi być jedną z dozwolonych (np. kategoria wina z listy). */
+    public function inList(string $field, array $allowed): self
+    {
+        return $this->check(
+            $field,
+            'in_list',
+            static fn (string $value): bool => $value === '' || in_array($value, $allowed, true),
+        );
+    }
+
+    /** Liczba całkowita z przedziału (np. rocznik); same cyfry, bez znaku i spacji. */
+    public function integerBetween(string $field, int $min, int $max): self
+    {
+        return $this->check(
+            $field,
+            'integer_between',
+            static fn (string $value): bool => $value === ''
+                || (preg_match('/^\d{1,9}$/', $value) === 1 && (int) $value >= $min && (int) $value <= $max),
+            ['min' => $min, 'max' => $max],
+        );
+    }
+
+    /**
+     * Liczba dziesiętna z przedziału, z przecinkiem lub kropką i najwyżej $decimals miejscami
+     * po przecinku (np. cena 165,50 albo moc 13,5).
+     */
+    public function decimalBetween(string $field, int $min, int $max, int $decimals): self
+    {
+        return $this->check(
+            $field,
+            'decimal_between',
+            static function (string $value) use ($min, $max, $decimals): bool {
+                if ($value === '') {
+                    return true;
+                }
+
+                $pattern = '/^\d{1,9}([.,]\d{1,' . $decimals . '})?$/';
+
+                if (preg_match($pattern, $value) !== 1) {
+                    return false;
+                }
+
+                $number = (float) str_replace(',', '.', $value);
+
+                return $number >= $min && $number <= $max;
+            },
+            ['min' => $min, 'max' => $max],
         );
     }
 
