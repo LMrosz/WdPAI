@@ -435,7 +435,10 @@ label {
 }
 
 input[type="email"],
-input[type="password"] {
+input[type="password"],
+input[type="text"],
+textarea,
+select {
   width: 100%;
   padding: 0.75rem var(--space-md);
   color: var(--color-text);
@@ -470,6 +473,132 @@ input[type="checkbox"] {
   cursor: pointer;
   font-family: inherit;
   text-align: center;
+}
+
+/* Pola wieloliniowe i listy rozwijane mają ten sam wygląd co inputy (wspólna reguła wyżej) */
+textarea {
+  resize: vertical;
+}
+
+.form-field :is(textarea, select)[aria-invalid="true"] {
+  border-color: var(--color-error);
+  border-width: 2px;
+}
+
+.required-mark {
+  color: var(--color-error);
+}
+
+/* Formularz wina jest szerszy niż logowanie, bo ma kilkanaście pól */
+.auth-card-wide {
+  width: min(100%, 44rem);
+}
+
+button.button {
+  font-family: inherit;
+  cursor: pointer;
+}
+
+/* Przycisk usuwania: sam kontur w kolorze błędu, żeby nie wyglądał jak główna akcja */
+.button-danger {
+  color: var(--color-error);
+  background-color: transparent;
+  border-color: var(--color-error);
+}
+
+/* Wylogowanie w nagłówku to formularz POST, ale wygląda jak pozostałe linki nawigacji */
+.logout-form {
+  margin: 0;
+}
+
+.link-button {
+  padding: 0;
+  color: var(--color-primary);
+  background: none;
+  border: 0;
+  font: inherit;
+  text-decoration: underline;
+  text-decoration-thickness: 0.08em;
+  text-underline-offset: 0.2em;
+  cursor: pointer;
+}
+
+.link-button:hover {
+  color: var(--color-primary-hover);
+}
+
+/* w nawigacji przycisk wylogowania wygląda jak pozostałe linki (mały, wersaliki, złota linia przy najechaniu) */
+nav .link-button {
+  padding-bottom: var(--space-xs);
+  color: var(--color-muted);
+  border-bottom: 1px solid transparent;
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-decoration: none;
+  text-transform: uppercase;
+}
+
+nav .link-button:hover {
+  color: var(--color-primary);
+  border-bottom-color: var(--color-gold-trim);
+}
+
+/* Cele dotyku (WCAG 2.2, kryterium 2.5.8): linki i przyciski poza zdaniami mają co najmniej 24 px wysokości */
+nav :is(a, .link-button) {
+  padding-top: var(--space-xs);
+}
+
+.auth-back a,
+.breadcrumb a,
+.delete-confirm summary {
+  display: inline-block;
+  padding-block: var(--space-sm);
+}
+
+/* Komunikat po przekierowaniu (np. "Wino zostało dodane") nad treścią strony */
+.flash {
+  padding-top: var(--space-lg);
+}
+
+.flash .form-status {
+  margin: 0;
+  color: var(--color-text);
+}
+
+/* Konto: karty z danymi i uprawnieniami obok siebie od szerokości tabletu wzwyż */
+.account-grid {
+  display: grid;
+  gap: var(--space-md);
+}
+
+.permission-list {
+  margin: 0 0 var(--space-md);
+  padding-left: var(--space-lg);
+}
+
+.account-logout {
+  margin-top: var(--space-lg);
+}
+
+/* Akcje na stronie wina: edycja i usuwanie pod kartą wina */
+.wine-actions {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-md);
+  margin-top: var(--space-lg);
+  padding-top: var(--space-lg);
+  border-top: 1px solid var(--color-border);
+}
+
+.delete-confirm summary {
+  cursor: pointer;
+  color: var(--color-error);
+  font-weight: 600;
+}
+
+.delete-confirm form {
+  margin-top: var(--space-md);
 }
 
 /* Katalog (wina, degustacje): Grid z kartami, liczba kolumn dopasowuje się do szerokości */
@@ -1163,6 +1292,11 @@ input:focus-visible {
 
   .auth-card {
     padding: var(--space-xl);
+  }
+
+  .account-grid {
+    grid-template-columns: 1fr 1fr;
+    gap: var(--space-lg);
   }
 
   .catalog-page {

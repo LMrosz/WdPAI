@@ -10,13 +10,17 @@ VinoKeep to aplikacja webowa dla winnic: prezentuje ofertę (wina, degustacje, h
 | Nasze wina (`/wines`) | Katalog win w siatce kart, filtr rodzaju (`?type=`) i rozbudowana strona szczegółów wina (`/wines/{id}`: opis, notatki degustacyjne, potrawy, temperatura podawania, leżakowanie, karta z ceną i sekcja „Zobacz także”) | gotowe (dane z PostgreSQL) |
 | Degustacje (`/tastings`) | Oferty degustacji z winami i najbliższymi terminami (wolne miejsca liczone z rezerwacji), kroki rezerwacji | gotowe, dane z bazy (bez rezerwacji) |
 | O winnicy (`/about`) | Historia, fakty i cechy posiadłości | gotowe |
-| Logowanie (`/login`) | Formularz z walidacją po stronie serwera (błędy przy polach, kod 422, wpisany e-mail zostaje), przekierowanie na `/` po poprawnym wysłaniu | tymczasowo, bez uwierzytelniania |
-| Rejestracja (`/register`) | Formularz z walidacją e-maila i hasła (długość, litera, cyfra, znak specjalny, powtórzenie), przekierowanie na `/login` po poprawnym wysłaniu | tymczasowo, konto nie jest jeszcze zapisywane |
+| Logowanie (`/login`) | Uwierzytelnianie hasłem (`password_verify`), sesja z nowym id po zalogowaniu, jeden ogólny komunikat przy złym adresie lub haśle, token CSRF | gotowe |
+| Rejestracja (`/register`) | Walidacja e-maila i hasła (długość, litera, cyfra, znak specjalny, powtórzenie), zapis konta gościa ze skrótem hasła (`password_hash`), obsługa zajętego adresu | gotowe |
+| Wylogowanie (`POST /logout`) | Czyści sesję, wygasza ciasteczko i niszczy sesję; wymaga tokenu CSRF | gotowe |
+| Konto (`/account`) | Dane zalogowanego użytkownika, jego rola i uprawnienia; bez logowania 401 | gotowe |
+| Zarządzanie winami (`/wines/new`, `/wines/{id}/edit`) | Formularze dodawania i edycji z walidacją, usuwanie z potwierdzeniem; piwniczy dodaje i edytuje, właściciel dodatkowo usuwa | gotowe |
 | Teksty serwisu | Wszystkie napisy i nazwa marki w `config/content.php` | gotowe |
 | Motyw jasny/ciemny | Przełącznik w nagłówku: tryb systemowy, jasny lub ciemny, wybór zapamiętany w przeglądarce | gotowe |
 | Dostępność (WCAG) | Semantyczne znaczniki, widoczny fokus, kontrast sprawdzony w obu motywach narzędziem axe | częściowo, pełny audyt planowany w przyszłości |
-| Baza PostgreSQL | Schemat z 8 tabelami (użytkownicy, role, wina, degustacje, rezerwacje), indeksy, dane demonstracyjne i warstwa danych przez PDO (encje, repozytoria, DTO, Value Object) | gotowe, aplikacja czyta z bazy wina i degustacje, a konta i rezerwacje czekają na logowanie |
-| Role użytkowników, rezerwacje, upload, panel admina | Prawdziwe logowanie, rezerwacje, edycja treści | planowane w przyszłości |
+| Baza PostgreSQL | Schemat z 8 tabelami (użytkownicy, role, wina, degustacje, rezerwacje), indeksy, dane demonstracyjne i warstwa danych przez PDO (encje, repozytoria, DTO, Value Object) | gotowe, aplikacja czyta z bazy wina, degustacje i konta, a zapisuje konta oraz wina |
+| Role użytkowników | `GUEST`, `CELLAR_MASTER`, `WINERY_OWNER` z uprawnieniami sprawdzanymi po stronie serwera (401 bez logowania, 403 przy niewłaściwej roli) | gotowe |
+| Rezerwacje, upload, panel admina | Rezerwacje degustacji, zdjęcia, edycja treści | planowane w przyszłości |
 
 ## Tech stack
 
@@ -182,7 +186,8 @@ Repozytoria (interfejs plus implementacja dla PostgreSQL):
 
 | Interfejs | Implementacja | Zapytania |
 |-----------|---------------|-----------|
-| `WineRepositoryInterface` | `PostgresWineRepository` (oraz `ContentWineRepository` z pliku) | odczyt win, `create(WineData)`, `update(id, WineData)` i `delete(id)` w transakcjach |
+| `WineRepositoryInterface` | `PostgresWineRepository` (oraz `ContentWineRepository` z pliku) | odczyt win (`findAll`, `findById`, `findRelated`) |
+| `WineWriterInterface` | `PostgresWineRepository` | `create(WineData)`, `update(id, WineData)` i `delete(id)` w transakcjach, `findDataById` do formularza edycji; duplikat nazwy i rocznika rzuca `DuplicateWineException` |
 | `UserRepositoryInterface` | `PostgresUserRepository` | `users JOIN roles`, `create` (duplikat adresu rzuca `EmailAlreadyUsedException`), `delete` |
 | `TastingRepositoryInterface` | `PostgresTastingRepository` | `tasting_wines JOIN wines` oraz `tasting_sessions LEFT JOIN reservations` z `GROUP BY` do wolnych miejsc |
 
@@ -192,6 +197,7 @@ Skrypty pokazowe uruchamiane w kontenerze `php`:
 
 ```bash
 docker compose exec php php bin/demo-repositories.php   # Email, użytkownicy z rolą, degustacje z terminami (konto demo jest od razu usuwane)
+docker compose exec php php bin/demo-auth.php           # rejestracja ze skrótem hasła, logowanie, uprawnienia ról (konto demo jest od razu usuwane)
 ```
 
 ### Sprawdzenie połączenia i bazy
@@ -223,7 +229,7 @@ docker compose exec php php bin/demo-wines-crud.php cleanup   # usuwa wina demo
 
 ### Konta demonstracyjne
 
-Skrypt `03-seed.sql` tworzy trzy konta (`gosc@corvo-bianco.example`, `piwniczy@corvo-bianco.example`, `wlasciciel@corvo-bianco.example`) z hasłem `Winiarz-2026!`. To dane wyłącznie do lokalnego rozwoju; logowanie przez aplikację nie jest jeszcze podłączone.
+Skrypt `03-seed.sql` tworzy trzy konta (`gosc@corvo-bianco.example`, `piwniczy@corvo-bianco.example`, `wlasciciel@corvo-bianco.example`) z hasłem `Winiarz-2026!`. To dane wyłącznie do lokalnego rozwoju. Można nimi zalogować się na `/login`: `gosc@` ma rolę `GUEST`, `piwniczy@` rolę `CELLAR_MASTER`, a `wlasciciel@` rolę `WINERY_OWNER`. Konta zakładane przez `/register` zawsze mają rolę `GUEST`; wyższe role nadaje się w bazie, np. `UPDATE users SET role_id = (SELECT id FROM roles WHERE code = 'CELLAR_MASTER') WHERE email = '...'`.
 
 ## Debugowanie (Xdebug)
 
@@ -266,6 +272,7 @@ W PhpStorm wystarczy w ustawieniach PHP dodać serwer `localhost:8080` z mapowan
 ```text
 my-app/
 ├── bin/
+│   ├── demo-auth.php        # pokaz uwierzytelniania: rejestracja, logowanie, uprawnienia ról
 │   ├── demo-repositories.php # pokaz warstwy danych: użytkownicy, Value Object Email, degustacje
 │   └── demo-wines-crud.php  # pokaz operacji CRUD na repozytorium win (DTO WineData)
 ├── config/
@@ -279,20 +286,24 @@ my-app/
 │   ├── js/theme.js          # przełącznik motywu jasny/ciemny/systemowy
 │   └── views/               # widoki *.html.php (sam element <main>)
 │       ├── layout.html.php  # wspólny szkielet strony, składa head, nagłówek, treść i stopkę
-│       ├── error.html.php   # wspólny widok błędów 400, 404 i 500
-│       └── partials/        # wspólne head, header, footer
+│       ├── error.html.php   # wspólny widok błędów 400, 401, 403, 404 i 500
+│       ├── account.html.php # konto zalogowanego użytkownika
+│       ├── wine-form.html.php # formularz dodawania i edycji wina
+│       └── partials/        # wspólne head, header, footer, pola formularzy, pole tokenu CSRF
 ├── src/
 │   ├── Database.php         # tworzy połączenie PDO z PostgreSQL
 │   ├── Routing.php          # router
-│   ├── Exception/           # HttpException i wyjątki 400 oraz 404
+│   ├── Exception/           # HttpException i wyjątki 400, 401, 403, 404 oraz wyjątki domenowe (zajęty e-mail, duplikat wina)
 │   ├── Dto/WineData.php     # DTO z danymi wina do zapisu
-│   ├── Model/               # encje (Wine, User, Tasting, TastingSession), Value Object Email, enum Role, TastedWine
+│   ├── Model/               # encje (Wine, User, Tasting, TastingSession), Value Object Email, enum Role i Permission, TastedWine
 │   ├── Repository/          # interfejsy i implementacje dla PostgreSQL (wina, użytkownicy, degustacje) oraz ContentWineRepository (plik)
 │   ├── Service/
+│   │   ├── AuthService.php  # rejestracja i weryfikacja hasła
 │   │   ├── PriceFormatter.php # formatowanie kwot z bazy („165 zł”)
+│   │   ├── Session.php      # konfiguracja i uruchomienie sesji, logowanie i niszczenie sesji
 │   │   ├── SiteContent.php  # odczyt tekstów z config/content.php
 │   │   └── Validator.php    # walidacja danych z formularzy po stronie serwera
-│   └── controllers/         # kontrolery (AppController jako baza, ErrorController dla stron błędów)
+│   └── controllers/         # kontrolery (AppController jako baza z pomocnikami sesji i CSRF, SecurityController, AccountController, WineManagementController, ErrorController)
 ├── docker-compose.yaml
 ├── composer.json
 └── AGENTS.MD                # zasady pracy z asystentem AI
@@ -315,13 +326,20 @@ Wygląd obu motywów opisują zmienne CSS w `public/css/style.css`: motyw jasny 
 |---|---|---|
 | GET | `/` | Strona główna |
 | GET | `/wines` | Katalog win; opcjonalny filtr `?type=red`, `white`, `rose` albo `sparkling` (inna wartość daje 400) |
+| GET | `/wines/new` | Formularz nowego wina (`CELLAR_MASTER`, `WINERY_OWNER`); musi być zarejestrowana przed `/wines/{id}` |
+| POST | `/wines` | Zapis nowego wina: błędy wracają do formularza (422), sukces przekierowuje na stronę wina |
 | GET | `/wines/{id}` | Strona wina z opisem, notatkami degustacyjnymi i propozycjami potraw; `id` niebędące dodatnią liczbą daje 400, a nieistniejące wino 404 |
+| GET | `/wines/{id}/edit` | Formularz edycji wina (`CELLAR_MASTER`, `WINERY_OWNER`) |
+| POST | `/wines/{id}/edit` | Zapis zmian w winie |
+| POST | `/wines/{id}/delete` | Usunięcie wina (tylko `WINERY_OWNER`) |
 | GET | `/tastings` | Degustacje |
 | GET | `/about` | O winnicy |
 | GET | `/login` | Formularz logowania |
-| POST | `/login` | Obsługa formularza: błędy wracają do formularza (422), poprawne dane przekierowują na `/` (na razie bez uwierzytelniania) |
+| POST | `/login` | Logowanie: zły token CSRF to 403, błędne pola 422, zły adres lub hasło 422 z ogólnym komunikatem, sukces przekierowuje na `/account` |
 | GET | `/register` | Formularz rejestracji |
-| POST | `/register` | Obsługa formularza: błędy wracają do formularza (422), poprawne dane przekierowują na `/login?registered=1` (na razie bez zapisu konta) |
+| POST | `/register` | Rejestracja: błędy i zajęty adres wracają do formularza (422), sukces przekierowuje na `/login?registered=1` |
+| POST | `/logout` | Wylogowanie (token CSRF), przekierowanie na `/login?logged_out=1` |
+| GET | `/account` | Konto zalogowanego użytkownika (bez logowania 401) |
 
 ## Parametry w adresie
 
@@ -331,21 +349,64 @@ Kontroler korzysta z `WineRepositoryInterface` (a `TastingController` z `Tasting
 
 ## Obsługa błędów
 
-Router rzuca `NotFoundException`, gdy żadna trasa nie pasuje, a kontroler może rzucić `BadRequestException`, gdy żądanie jest błędne (np. zły format identyfikatora). Front controller łapie `HttpException` i pokazuje stronę błędu z odpowiednim kodem (400 albo 404) przez `ErrorController`. Każdy inny nieoczekiwany błąd kończy się ogólną stroną 500, a szczegóły trafiają tylko do logu serwera, bez stack trace dla użytkownika. Teksty błędów są w `config/content.php` (`errors.*`).
+Router rzuca `NotFoundException`, gdy żadna trasa nie pasuje, a kontroler może rzucić `BadRequestException` (np. zły format identyfikatora), `UnauthorizedException` (akcja wymaga logowania) albo `ForbiddenException` (rola bez uprawnienia albo zły token CSRF). Front controller łapie `HttpException` i pokazuje stronę błędu z odpowiednim kodem (400, 401, 403 albo 404) przez `ErrorController`; strona 401 prowadzi do logowania. Każdy inny nieoczekiwany błąd kończy się ogólną stroną 500, a szczegóły trafiają tylko do logu serwera, bez stack trace dla użytkownika. Teksty błędów są w `config/content.php` (`errors.*`).
 
 ## Walidacja formularzy
 
-`App\Service\Validator` sprawdza dane po stronie serwera łańcuchem reguł (`required`, `email`, `minLength`, `maxLength`, `matches`, `letterAndDigit`, `specialCharacter`) i dla każdego pola zapamiętuje pierwszy błąd. Komunikaty są w `config/content.php` (`validation.*`), więc walidator nie zawiera napisów.
+`App\Service\Validator` sprawdza dane po stronie serwera łańcuchem reguł (`required`, `email`, `minLength`, `maxLength`, `maxBytes`, `matches`, `letterAndDigit`, `specialCharacter`, `inList`, `integerBetween`, `decimalBetween`) i dla każdego pola zapamiętuje pierwszy błąd. Komunikaty są w `config/content.php` (`validation.*`), więc walidator nie zawiera napisów.
 
-Formularze logowania i rejestracji działają tak samo:
+Formularze logowania, rejestracji i wina działają tak samo:
 
-- `POST` jest obsługiwany w `SecurityController`, a wartości z `$_POST` czyta `AppController::postString()` (pole z tablicą, np. `email[]=x`, traktowane jest jak puste),
+- `POST` jest obsługiwany w `SecurityController` (logowanie, rejestracja) i `WineManagementController` (wina), a wartości z `$_POST` czyta `AppController::postString()` (pole z tablicą, np. `email[]=x`, traktowane jest jak puste),
 - przy błędzie kontroler odsyła formularz z kodem **422**, komunikatami przy polach i wpisanym e-mailem; haseł nigdy nie odsyła,
 - komunikaty są powiązane z polami przez `aria-describedby` i `aria-invalid`, a nad formularzem jest podsumowanie błędów z linkami do pól,
 - formularze mają `novalidate`, żeby komunikaty zawsze pochodziły z serwera,
 - przy poprawnych danych kontroler odpowiada przekierowaniem **303** (wzorzec Post/Redirect/Get), więc odświeżenie strony nie wysyła formularza drugi raz.
 
-Limity pól: e-mail do 254 znaków, hasło od 8 do 64 znaków, z literą, cyfrą i znakiem specjalnym.
+Limity pól: e-mail do 254 znaków, hasło od 8 do 64 znaków (i najwyżej 72 bajty, bo tyle uwzględnia bcrypt), z literą, cyfrą i znakiem specjalnym. W formularzu wina liczby przyjmują przecinek lub kropkę (cena do 2 miejsc po przecinku, moc alkoholu do 1), rocznik to 1900–2100, a potrawy wpisuje się po jednej w wierszu (najwyżej 10).
+
+## Uwierzytelnianie i sesje (Lab 9)
+
+**Sesja.** `App\Service\Session::start()` konfiguruje ciasteczko sesji raz, w `public/index.php`, zanim ruszy routing: bez daty ważności (znika z zamknięciem przeglądarki), `HttpOnly` (niedostępne dla JavaScriptu), `SameSite=Lax` i `Secure` tylko przy HTTPS, żeby lokalnie po `http://localhost` sesja działała. W sesji jest tylko `user` (id, e-mail, nazwa, rola, czas logowania) i token CSRF, nigdy hasło ani jego skrót.
+
+**Rejestracja i logowanie** (`SecurityController`, logika w `AuthService`):
+
+- hasło zapisujemy jako `password_hash(PASSWORD_DEFAULT)`, a sprawdzamy przez `password_verify`; jawnego hasła nie ma nigdzie w bazie ani w logach,
+- nowe konto zawsze dostaje rolę `GUEST`; roli nie da się podać w formularzu,
+- zajęty adres kończy się komunikatem przy polu e-mail; ochrona działa także przy dwóch równoczesnych rejestracjach, bo ostateczną decyzję podejmuje `UNIQUE` w bazie (`EmailAlreadyUsedException`),
+- zły adres i złe hasło dają ten sam komunikat „Nieprawidłowy e-mail lub hasło.”, a przy nieistniejącym koncie i tak liczony jest skrót, żeby czas odpowiedzi nie zdradzał, czy konto istnieje,
+- po zalogowaniu `session_regenerate_id(true)` wymienia id sesji (ochrona przed session fixation), a stare id przestaje działać.
+
+**Wylogowanie** to `POST /logout` z tokenem CSRF: czyści `$_SESSION`, wygasza ciasteczko i wywołuje `session_destroy()`. Zwykły link GET dałoby się wywołać z obcej strony i wylogować użytkownika bez jego wiedzy. Nagłówek pokazuje „Zaloguj się” albo „Moje konto” i „Wyloguj się”.
+
+**CSRF.** Każdy formularz POST (logowanie, rejestracja, wylogowanie, wina) ma ukryte pole `csrf_token` z `bin2hex(random_bytes(32))` zapisanym w sesji. Akcja zaczyna się od `requireValidCsrf()`, które porównuje token przez `hash_equals` i przy niezgodności rzuca `ForbiddenException` (403). Po zalogowaniu token jest generowany od nowa.
+
+**Role i uprawnienia.** Enum `Role` wie, jakie `Permission` ma każda rola:
+
+| Rola | Uprawnienia |
+|------|-------------|
+| `GUEST` | przeglądanie win i degustacji |
+| `CELLAR_MASTER` | dodatkowo `ManageWines`: dodawanie i edycja win |
+| `WINERY_OWNER` | dodatkowo `DeleteWines`: usuwanie win |
+
+Akcje chronione zaczynają się od `requireLogin()`, `requireUser()` albo `requirePermission()` z `AppController`: brak sesji daje **401**, a rola bez uprawnienia **403**. `requirePermission()` czyta użytkownika z bazy, więc zmiana roli albo usunięcie konta działa od razu, bez czekania na wygaśnięcie sesji. Widoki ukrywają przyciski (Dodaj, Edytuj, Usuń) na podstawie roli z sesji, ale to tylko wygoda: o dostępie decyduje serwer, więc ręczne wpisanie adresu też kończy się 401 albo 403.
+
+**Lista kontrolna bezpieczeństwa:**
+
+| Zagrożenie | Zabezpieczenie |
+|------------|----------------|
+| SQL injection | prepared statements z parametrami w każdym repozytorium |
+| XSS | `htmlspecialchars` w każdym widoku (`$e`, `$t`) |
+| Kradzież hasła z bazy | tylko skróty `password_hash`, nigdy jawne hasło |
+| Session fixation | `session_regenerate_id(true)` po zalogowaniu |
+| Kradzież ciasteczka | `HttpOnly`, `SameSite=Lax`, `Secure` przy HTTPS |
+| CSRF | token w każdym POST, `hash_equals`, wylogowanie przez POST |
+| Enumeracja kont | jeden komunikat i stały czas przy logowaniu |
+| Podniesienie uprawnień | rola nigdy z formularza, uprawnienia sprawdzane po stronie serwera (401/403) |
+| Open redirect | `redirect()` przyjmuje tylko ścieżki wewnętrzne (zaczynające się od jednego `/`) |
+| Wycieki informacji | błędy techniczne tylko w logu, użytkownik widzi ogólną stronę 500 |
+
+Nie ma jeszcze ograniczania liczby prób logowania ani limitu czasu bezczynności sesji; to możliwe usprawnienia na później.
 
 ## Zmiana tekstów i marki
 

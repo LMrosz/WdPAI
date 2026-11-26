@@ -7,6 +7,7 @@ namespace App\Controller;
 use App\Database;
 use App\Exception\BadRequestException;
 use App\Exception\NotFoundException;
+use App\Model\Permission;
 use App\Model\Wine;
 use App\Repository\PostgresWineRepository;
 use App\Repository\WineRepositoryInterface;
@@ -34,20 +35,18 @@ final class WineController extends AppController
             'wines' => $this->wines->findAll($category),
             'filters' => $this->content()->get('wines.filters') ?? [],
             'activeFilter' => $category ?? 'all',
+            'canManageWines' => $this->can(Permission::ManageWines),
         ], true);
     }
 
     /**
      * GET /wines/{id} – szczegóły jednego wina.
      * Id, które nie jest dodatnią liczbą całkowitą, daje 400; poprawne id bez wina daje 404.
+     * Przyciski edycji i usuwania widzą tylko role z odpowiednimi uprawnieniami.
      */
     public function show(string $id): void
     {
-        if (!ctype_digit($id) || (int) $id < 1) {
-            throw new BadRequestException('Wine id must be a positive integer, got "' . $id . '"');
-        }
-
-        $wine = $this->wines->findById((int) $id);
+        $wine = $this->wines->findById($this->idFromPath($id));
 
         if ($wine === null) {
             throw new NotFoundException('Wine ' . $id . ' not found');
@@ -58,6 +57,8 @@ final class WineController extends AppController
             'activePage' => 'wines',
             'wine' => $wine,
             'related' => $this->wines->findRelated($wine),
+            'canManageWines' => $this->can(Permission::ManageWines),
+            'canDeleteWines' => $this->can(Permission::DeleteWines),
         ], true);
     }
 

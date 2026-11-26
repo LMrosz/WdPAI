@@ -4,6 +4,8 @@
  *
  * @var App\Model\Wine $wine
  * @var list<App\Model\Wine> $related
+ * @var bool $canManageWines czy rola może edytować wina
+ * @var bool $canDeleteWines czy rola może usuwać wina
  */
 $facts = [
     'wines.detail.type' => $wine->type,
@@ -97,6 +99,23 @@ $tasting = [
                         <?php endif; ?>
                     <?php endforeach; ?>
                 </dl>
+                <?php if ($canManageWines || $canDeleteWines): ?>
+                    <div class="wine-actions">
+                        <?php if ($canManageWines): ?>
+                            <a class="button" href="/wines/<?= (int) $wine->id ?>/edit"><?= $t('wines.form.edit_link') ?></a>
+                        <?php endif; ?>
+                        <?php if ($canDeleteWines): ?>
+                            <details class="delete-confirm">
+                                <summary><?= $t('wines.form.delete') ?></summary>
+                                <form action="/wines/<?= (int) $wine->id ?>/delete" method="post">
+                                    <?php require __DIR__ . '/partials/csrf-field.html.php'; ?>
+                                    <p><?= $t('wines.form.delete_warning') ?></p>
+                                    <button type="submit" class="button button-danger"><?= $t('wines.form.delete_confirm') ?></button>
+                                </form>
+                            </details>
+                        <?php endif; ?>
+                    </div>
+                <?php endif; ?>
             </aside>
         </div>
     </article>

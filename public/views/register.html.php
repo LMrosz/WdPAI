@@ -22,6 +22,7 @@ $labels = array_column($fields, 'label', 'name');
         <p class="auth-intro"><?= $t('register.intro') ?></p>
 
         <form action="<?= $e($formAction) ?>" method="post" novalidate>
+            <?php require __DIR__ . '/partials/csrf-field.html.php'; ?>
             <?php require __DIR__ . '/partials/form-errors.html.php'; ?>
             <fieldset>
                 <legend><?= $t('register.legend') ?></legend>

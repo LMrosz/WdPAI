@@ -9,6 +9,8 @@ final class ErrorController extends AppController
     /** Kody HTTP, które mają własny tekst w config/content.php (errors.<klucz>). */
     private const KEYS = [
         400 => 'bad_request',
+        401 => 'unauthorized',
+        403 => 'forbidden',
         404 => 'not_found',
         500 => 'server_error',
     ];
@@ -24,6 +26,8 @@ final class ErrorController extends AppController
             'pageTitle' => $this->text("errors.$key.page_title"),
             'activePage' => null,
             'errorKey' => $key,
+            // po 401 sensowny następny krok to logowanie, a nie strona główna
+            'backUrl' => $statusCode === 401 ? '/login' : '/',
         ], true);
     }
 }

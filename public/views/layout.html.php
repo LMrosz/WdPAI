@@ -2,8 +2,8 @@
 /**
  * Wspólny szablon strony: head, nagłówek, treść, stopka i skrypt motywu.
  *
- * Oczekuje zmiennych: $main (gotowy HTML elementu <main>), $pageTitle, $activePage
- * oraz pomocników $t i $e z AppController::render().
+ * Oczekuje zmiennych: $main (gotowy HTML elementu <main>), $pageTitle, $activePage, $flash
+ * (komunikat po przekierowaniu albo null) oraz pomocników $t i $e z AppController::render().
  */
 ?>
 <!doctype html>
@@ -11,6 +11,12 @@
 <?php require __DIR__ . '/partials/head.html.php'; ?>
 <body>
     <?php require __DIR__ . '/partials/header.html.php'; ?>
+
+    <?php if ($flash !== null): ?>
+        <div class="page flash">
+            <p class="form-status" role="status"><?= $e($flash) ?></p>
+        </div>
+    <?php endif; ?>
 
     <?= $main ?>
 

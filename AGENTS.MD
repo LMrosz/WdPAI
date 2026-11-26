@@ -6,21 +6,22 @@ Ten plik jest przewodnikiem dla agentów AI pracujących w repozytorium **VinoKe
 
 VinoKeep to aplikacja dla winnicy i enoturystyki, tworzona w ramach kursu *Wstęp do Projektowania Aplikacji Internetowych* (WdPAI). Jest napisana w czystym PHP 8.3 i korzysta z lekkiej, samodzielnie zaimplementowanej architektury MVC, bez frameworka PHP. Działa w kontenerach Docker Compose.
 
-Docelowe role użytkowników (na razie tylko opisane w komentarzach, bez implementacji):
+Role użytkowników (enum `App\Model\Role`, uprawnienia w `Role::permissions()`):
 
-- `GUEST` — gość rezerwujący degustacje,
-- `CELLAR_MASTER` — piwniczy zarządzający piwnicą,
-- `WINERY_OWNER` — właściciel winnicy.
+- `GUEST` — gość rezerwujący degustacje (rezerwacje jeszcze nie istnieją), tylko przegląda,
+- `CELLAR_MASTER` — piwniczy: dodaje i edytuje wina (`Permission::ManageWines`),
+- `WINERY_OWNER` — właściciel winnicy: jak piwniczy, a dodatkowo usuwa wina (`Permission::DeleteWines`).
 
 Aktualnie aplikacja obsługuje:
 
 - katalog win pod `/wines` z filtrem `?type=` oraz rozbudowaną stronę wina pod `/wines/{id}` (opis, notatki degustacyjne, potrawy, sekcja „Zobacz także”; `WineController`, model `App\Model\Wine`, repozytorium `App\Repository\PostgresWineRepository` czytające tabele `wines` i `wine_pairings` z PostgreSQL; `ContentWineRepository` z `config/content.php` to druga implementacja tego samego interfejsu); zły format `id` lub `type` daje 400, brak wina 404,
 - stronę główną pod `/` (`DefaultController::index`) — hero z opisem posiadłości i kartami statystyk, dane na razie zapisane na sztywno w kontrolerze,
-- formularze logowania (`/login`) i rejestracji (`/register`) w `SecurityController` z trasami GET i POST — walidacja po stronie serwera przez `Validator`, błędy z kodem 422 i komunikatami przy polach, przekierowanie 303 po sukcesie; bez uwierzytelniania, sesji i zapisu konta,
-- strony błędów 400, 404 i 500 (`ErrorController::show`, widok `error.html.php`); router rzuca `NotFoundException`, a front controller zamienia `HttpException` na stronę błędu,
+- rejestrację (`/register`), logowanie (`/login`) i wylogowanie (`POST /logout`) w `SecurityController` oraz konto (`/account`) w `AccountController`: walidacja przez `Validator`, hasła jako `password_hash`, sesja uruchamiana raz w `public/index.php` przez `App\Service\Session`, token CSRF w każdym formularzu POST, nowe id sesji po zalogowaniu; logika rejestracji i weryfikacji hasła jest w `App\Service\AuthService`,
+- dodawanie, edycję i usuwanie win (`WineManagementController`, trasy `/wines/new`, `/wines/{id}/edit`, `POST /wines`, `POST /wines/{id}/edit`, `POST /wines/{id}/delete`) z walidacją, uprawnieniami ról i komunikatami po przekierowaniu (`flash()`),
+- strony błędów 400, 401, 403, 404 i 500 (`ErrorController::show`, widok `error.html.php`); router rzuca `NotFoundException`, a front controller zamienia `HttpException` (w tym `UnauthorizedException` i `ForbiddenException`) na stronę błędu,
 - walidację formularzy po stronie serwera (`App\Service\Validator`, komunikaty w `config/content.php` pod kluczem `validation`).
 
-Baza PostgreSQL jest podłączona dla win (`wines`, `wine_pairings`) i degustacji (`tastings`, `tasting_wines`, `tasting_sessions`, wolne miejsca liczone z `reservations`). `users` i `roles` ma `PostgresUserRepository`, ale aplikacja jeszcze go nie używa: nie ma uwierzytelniania, sesji, zapisu kont ani rezerwacji — nie opisuj ich jako istniejących.
+Baza PostgreSQL jest podłączona dla win (`wines`, `wine_pairings`), degustacji (`tastings`, `tasting_wines`, `tasting_sessions`, wolne miejsca liczone z `reservations`) i kont (`users`, `roles` przez `PostgresUserRepository`). Rezerwacji degustacji (zapis do `reservations`), uploadu i panelu administratora jeszcze nie ma — nie opisuj ich jako istniejących.
 
 ## Stack technologiczny
 
@@ -35,7 +36,7 @@ Baza PostgreSQL jest podłączona dla win (`wines`, `wine_pairings`) i degustacj
 
 ```text
 .
-├── bin/                       # skrypty CLI: demo-wines-crud.php, demo-repositories.php (uruchamiane w kontenerze php)
+├── bin/                       # skrypty CLI: demo-wines-crud.php, demo-repositories.php, demo-auth.php (uruchamiane w kontenerze php)
 ├── config/                    # content.php (teksty i dane marki), database.php (połączenie z bazą ze zmiennych środowiskowych)
 ├── database/                  # skrypty SQL: 01-schema, 02-indexes, 03-seed (wykonywane raz przy pierwszym starcie bazy)
 ├── docker/
@@ -49,15 +50,17 @@ Baza PostgreSQL jest podłączona dla win (`wines`, `wine_pairings`) i degustacj
 │       ├── home.html.php      # strona główna
 │       ├── login.html.php     # logowanie
 │       ├── register.html.php  # rejestracja
-│       └── error.html.php     # błędy 400, 404, 500
+│       ├── account.html.php   # konto zalogowanego użytkownika
+│       ├── wine-form.html.php # formularz dodawania i edycji wina
+│       └── error.html.php     # błędy 400, 401, 403, 404, 500
 ├── src/
 │   ├── controllers/           # App\Controller\* (AppController, Default, Security, Error itd.)
-│   ├── Exception/             # App\Exception\* — HttpException, BadRequestException, NotFoundException
+│   ├── Exception/             # App\Exception\* — HttpException, BadRequest/Unauthorized/Forbidden/NotFoundException, EmailAlreadyUsed/DuplicateWineException
 │   ├── Dto/                   # App\Dto\* — WineData (DTO do zapisu)
-│   ├── Model/                 # App\Model\* — Wine, User, Tasting, TastingSession, TastedWine, Email (Value Object), Role (enum)
+│   ├── Model/                 # App\Model\* — Wine, User, Tasting, TastingSession, TastedWine, Email (Value Object), Role i Permission (enumy)
 │   ├── Database.php           # App\Database — jedyne miejsce tworzące połączenie PDO
 │   ├── Repository/            # App\Repository\* — interfejsy i implementacje PostgreSQL: Wine, User, Tasting (+ ContentWineRepository)
-│   ├── Service/               # App\Service\* — SiteContent, Validator, PriceFormatter
+│   ├── Service/               # App\Service\* — SiteContent, Validator, PriceFormatter, Session, AuthService
 │   └── Routing.php            # App\Routing — rejestracja i obsługa tras
 ├── AGENTS.MD                  # ten plik
 ├── README.md                  # opis projektu dla ludzi
@@ -120,6 +123,8 @@ Kontrolery znajdują się w `src/controllers/`, używają przestrzeni nazw `App\
 - przygotowanie danych dla widoku,
 - wybranie szablonu przez `$this->render()`.
 
+Akcje chronione zaczynają się od jednego z pomocników `AppController`: `requireLogin()` (401 bez sesji), `requireUser()` (użytkownik z bazy) albo `requirePermission(Permission::...)` (403 przy niewłaściwej roli). Akcje POST wywołują potem `requireValidCsrf()`, a formularz musi zawierać `partials/csrf-field.html.php`. Rola z sesji (`can()`) służy tylko do pokazywania lub ukrywania przycisków; nigdy nie zastępuje sprawdzenia po stronie serwera. Po udanym POST użyj `redirect()` (kończy skrypt, przyjmuje tylko ścieżki wewnętrzne), a komunikat dla następnej strony zapisz przez `flash('flash.klucz')`. Trasy ze stałym fragmentem (`/wines/new`) rejestruj przed trasami z parametrem (`/wines/{id}`).
+
 Kontroler powinien być cienki. Nie umieszczaj w nim rozbudowanych zapytań do bazy, HTML ani stylów. Dane „na sztywno” w `DefaultController` są tymczasowe i mają trafić do modelu/repozytorium, gdy pojawi się baza.
 
 ### Model
@@ -173,6 +178,7 @@ Cały wygląd mieści się w jednym arkuszu `public/css/style.css`, zgodnym z sy
 - Nie twórz globalnego stanu i nie używaj `$_GET`, `$_POST` ani `$_SERVER` poza warstwą wejścia, jeżeli dane można przekazać jako argument.
 - Nie dodawaj frameworka ani dużej biblioteki bez wyraźnej potrzeby i zgody użytkownika.
 - Sekrety umieszczaj w `.env`; nigdy nie commituj haseł, tokenów ani danych dostępowych. Nowa zmienna środowiskowa trafia też do `.env.example` (bez prawdziwej wartości) i do README.
+- Hasła przechowuj wyłącznie jako `password_hash()`, sprawdzaj przez `password_verify()` i nigdy ich nie loguj ani nie odsyłaj do widoku; rolę nowego konta ustawia serwer (`GUEST`), nie formularz.
 - Nie edytuj `vendor/` ręcznie.
 - Zachowuj zakres zadania i nie zmieniaj niezwiązanych plików.
 - Pliki w repozytorium mają końcówki linii zgodne z ustawieniami użytkownika (Windows, CRLF w katalogu roboczym) — nie zmieniaj ich masowo.

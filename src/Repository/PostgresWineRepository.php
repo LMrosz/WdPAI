@@ -5,9 +5,11 @@ declare(strict_types=1);
 namespace App\Repository;
 
 use App\Dto\WineData;
+use App\Exception\DuplicateWineException;
 use App\Model\Wine;
 use App\Service\PriceFormatter;
 use PDO;
+use PDOException;
 
 /**
  * Wina z PostgreSQL (tabele wines i wine_pairings). Cały SQL dotyczący win jest tutaj,
@@ -17,8 +19,10 @@ use PDO;
  * więc repozytorium składa je z liczb z bazy przy odczycie. Zapis przyjmuje DTO WineData
  * z wartościami liczbowymi, bez id; zwracana jest encja Wine odczytana z bazy.
  */
-final class PostgresWineRepository implements WineRepositoryInterface
+final class PostgresWineRepository implements WineRepositoryInterface, WineWriterInterface
 {
+    private const UNIQUE_VIOLATION = '23505';
+
     private const COLUMNS = 'id, name, category, type, grape, vintage, abv, award, notes, story,
         aroma, palate, finish, serving, cellaring, price';
 
@@ -67,6 +71,36 @@ final class PostgresWineRepository implements WineRepositoryInterface
         return $this->mapRows($statement->fetchAll());
     }
 
+    public function findDataById(int $id): ?WineData
+    {
+        $statement = $this->database->prepare('SELECT ' . self::COLUMNS . ' FROM wines WHERE id = :id');
+        $statement->execute(['id' => $id]);
+        $row = $statement->fetch();
+
+        if ($row === false) {
+            return null;
+        }
+
+        return new WineData(
+            name: (string) $row['name'],
+            category: (string) $row['category'],
+            type: (string) $row['type'],
+            notes: (string) $row['notes'],
+            price: (float) $row['price'],
+            grape: $row['grape'],
+            vintage: $row['vintage'] === null ? null : (int) $row['vintage'],
+            abv: $row['abv'] === null ? null : (float) $row['abv'],
+            award: $row['award'],
+            story: $row['story'],
+            aroma: $row['aroma'],
+            palate: $row['palate'],
+            finish: $row['finish'],
+            serving: $row['serving'],
+            cellaring: $row['cellaring'],
+            pairings: $this->loadPairings([$id])[$id] ?? [],
+        );
+    }
+
     /**
      * Dodaje wino razem z potrawami (INSERT ... RETURNING id, w jednej transakcji)
      * i zwraca encję z nadanym id.
@@ -91,7 +125,7 @@ final class PostgresWineRepository implements WineRepositoryInterface
         } catch (\Throwable $exception) {
             $this->database->rollBack();
 
-            throw $exception;
+            throw $this->translate($exception);
         }
 
         return $this->findById($id) ?? throw new \LogicException('Wino zniknęło tuż po zapisie.');
@@ -125,7 +159,7 @@ final class PostgresWineRepository implements WineRepositoryInterface
         } catch (\Throwable $exception) {
             $this->database->rollBack();
 
-            throw $exception;
+            throw $this->translate($exception);
         }
     }
 
@@ -136,6 +170,16 @@ final class PostgresWineRepository implements WineRepositoryInterface
         $statement->execute(['id' => $id]);
 
         return $statement->rowCount() > 0;
+    }
+
+    /** Naruszenie UNIQUE (nazwa + rocznik) staje się wyjątkiem domenowym; inne błędy przechodzą bez zmian. */
+    private function translate(\Throwable $exception): \Throwable
+    {
+        if ($exception instanceof PDOException && $exception->getCode() === self::UNIQUE_VIOLATION) {
+            return new DuplicateWineException('Wino o tej nazwie i roczniku już istnieje.', 0, $exception);
+        }
+
+        return $exception;
     }
 
     /**
