@@ -1,6 +1,7 @@
 <?php
 /**
  * @var string $formAction
+ * @var array<string, list<string>> $rules reguły walidacji pól (pole => lista reguł)
  * @var array<string, string> $errors nazwa pola => komunikat
  * @var array<string, string> $old wcześniej wpisane wartości
  * @var string|null $formError ogólny błąd formularza (zły adres lub hasło)
@@ -9,9 +10,9 @@
  */
 $fields = [
     ['name' => 'email', 'type' => 'email', 'label' => $content->text('login.email'),
-        'autocomplete' => 'username', 'value' => $old['email'] ?? ''],
+        'autocomplete' => 'username', 'value' => $old['email'] ?? '', 'rules' => $rules['email']],
     ['name' => 'password', 'type' => 'password', 'label' => $content->text('login.password'),
-        'autocomplete' => 'current-password'],
+        'autocomplete' => 'current-password', 'rules' => $rules['password']],
 ];
 $labels = array_column($fields, 'label', 'name');
 ?>
@@ -26,7 +27,7 @@ $labels = array_column($fields, 'label', 'name');
         <?php endif; ?>
         <p class="auth-intro"><?= $t('login.intro') ?></p>
 
-        <form action="<?= $e($formAction) ?>" method="post" novalidate>
+        <form action="<?= $e($formAction) ?>" method="post" novalidate data-validate>
             <?php require __DIR__ . '/partials/csrf-field.html.php'; ?>
             <?php if ($formError !== null): ?>
                 <div class="form-errors" role="alert">

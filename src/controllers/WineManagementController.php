@@ -154,23 +154,7 @@ final class WineManagementController extends AppController
             $old[$field] = trim($this->postString($field));
         }
 
-        $validator = (new Validator($old))
-            ->required('name')
-            ->maxLength('name', self::NAME_MAX)
-            ->required('category')
-            ->inList('category', Wine::CATEGORIES)
-            ->required('type')
-            ->maxLength('type', self::TYPE_MAX)
-            ->required('notes')
-            ->maxLength('notes', self::TEXT_MAX)
-            ->required('price')
-            ->decimalBetween('price', 0, 999999, 2)
-            ->integerBetween('vintage', 1900, 2100)
-            ->decimalBetween('abv', 0, 25, 1);
-
-        foreach (self::OPTIONAL_TEXT as $field => $limit) {
-            $validator->maxLength($field, $limit);
-        }
+        $validator = Validator::withRules($old, self::fieldRules());
 
         $errors = $this->validationMessages($validator);
         $pairings = $this->parsePairings($old['pairings']);
@@ -228,6 +212,30 @@ final class WineManagementController extends AppController
     }
 
     /**
+     * Reguły pól formularza wina. Ten sam zapis sprawdza serwer (Validator::rules) i przeglądarka
+     * (widok wypisuje go w atrybucie data-rules). Pole "pairings" ma osobną kontrolę po stronie serwera.
+     *
+     * @return array<string, list<string>>
+     */
+    private static function fieldRules(): array
+    {
+        $optionalText = array_map(
+            static fn (int $limit): array => ['max_length:' . $limit],
+            self::OPTIONAL_TEXT,
+        );
+
+        return [
+            'name' => ['required', 'max_length:' . self::NAME_MAX],
+            'category' => ['required', 'in_list:' . implode(',', Wine::CATEGORIES)],
+            'type' => ['required', 'max_length:' . self::TYPE_MAX],
+            'notes' => ['required', 'max_length:' . self::TEXT_MAX],
+            'price' => ['required', 'decimal_between:0,999999,2'],
+            'vintage' => ['integer_between:1900,2100'],
+            'abv' => ['decimal_between:0,25,1'],
+        ] + $optionalText;
+    }
+
+    /**
      * @param int|null $wineId id edytowanego wina albo null przy dodawaniu
      * @param array<string, string> $errors pole => komunikat
      * @param array<string, string> $old wartości pól
@@ -245,6 +253,7 @@ final class WineManagementController extends AppController
             'formAction' => $editing ? '/wines/' . $wineId . '/edit' : '/wines',
             'cancelUrl' => $editing ? '/wines/' . $wineId : '/wines',
             'categories' => $categories,
+            'rules' => self::fieldRules(),
             'errors' => $errors,
             'old' => $old,
         ], true);
