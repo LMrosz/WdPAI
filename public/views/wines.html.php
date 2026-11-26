@@ -19,6 +19,14 @@
             <?php endif; ?>
         </header>
 
+        <?php // pole szukania pokazuje dopiero JavaScript (public/js/modules/wine-search.js); bez niego działają same filtry ?>
+        <div class="catalog-search" data-wine-search hidden>
+            <label for="wine-search"><?= $t('wines.search_label') ?></label>
+            <input type="search" id="wine-search" autocomplete="off"
+                placeholder="<?= $t('wines.search_placeholder') ?>" aria-describedby="wine-search-status">
+            <p class="form-hint" id="wine-search-status" role="status"></p>
+        </div>
+
         <nav class="filter" aria-label="<?= $t('wines.filter_label') ?>">
             <ul>
                 <?php foreach ($filters as $key => $label): ?>
@@ -32,7 +40,7 @@
         <?php if ($wines === []): ?>
             <p><?= $t($activeFilter === 'all' ? 'wines.empty' : 'wines.empty_filtered') ?></p>
         <?php else: ?>
-            <ul class="catalog">
+            <ul class="catalog" data-wine-list>
                 <?php foreach ($wines as $wine): ?>
                     <li>
                         <?php require __DIR__ . '/partials/wine-card.html.php'; ?>
