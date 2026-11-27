@@ -8,6 +8,9 @@
                 <li><a href="/tastings"<?= $activePage === 'tastings' ? ' aria-current="page"' : '' ?>><?= $t('nav.tastings') ?></a></li>
                 <li><a href="/about"<?= $activePage === 'about' ? ' aria-current="page"' : '' ?>><?= $t('nav.about') ?></a></li>
                 <?php if ($authUser !== null): ?>
+                    <?php if ($canManageUsers): ?>
+                        <li><a href="/admin/users"<?= $activePage === 'admin' ? ' aria-current="page"' : '' ?>><?= $t('nav.admin') ?></a></li>
+                    <?php endif; ?>
                     <li><a href="/account"<?= $activePage === 'account' ? ' aria-current="page"' : '' ?>><?= $t('nav.account') ?></a></li>
                     <li>
                         <form action="/logout" method="post" class="logout-form">
