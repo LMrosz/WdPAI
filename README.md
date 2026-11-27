@@ -8,7 +8,7 @@ VinoKeep to aplikacja webowa dla winnic: prezentuje ofertę (wina, degustacje, h
 |---|---|---|
 | Strona startowa (`/`) | Hero, statystyki winnicy, przyciski do głównych sekcji | gotowe |
 | Nasze wina (`/wines`) | Katalog win w siatce kart, filtr rodzaju (`?type=`) i rozbudowana strona szczegółów wina (`/wines/{id}`: opis, notatki degustacyjne, potrawy, temperatura podawania, leżakowanie, karta z ceną i sekcja „Zobacz także”) | gotowe (dane z PostgreSQL) |
-| Degustacje (`/tastings`) | Oferty degustacji z winami i najbliższymi terminami (wolne miejsca liczone z rezerwacji), kroki rezerwacji | gotowe, dane z bazy (bez rezerwacji) |
+| Degustacje (`/tastings`) | Oferty degustacji z winami i najbliższymi terminami (wolne miejsca z widoku bazy), kroki rezerwacji oraz formularze rezerwacji i anulowania dla zalogowanych | gotowe, dane z bazy, rezerwacje przez Fetch API (wymagają JavaScriptu) |
 | O winnicy (`/about`) | Historia, fakty i cechy posiadłości | gotowe |
 | Logowanie (`/login`) | Uwierzytelnianie hasłem (`password_verify`), sesja z nowym id po zalogowaniu, jeden ogólny komunikat przy złym adresie lub haśle, token CSRF | gotowe |
 | Rejestracja (`/register`) | Walidacja e-maila i hasła (długość, litera, cyfra, znak specjalny, powtórzenie), zapis konta gościa ze skrótem hasła (`password_hash`), obsługa zajętego adresu | gotowe |
@@ -21,7 +21,8 @@ VinoKeep to aplikacja webowa dla winnic: prezentuje ofertę (wina, degustacje, h
 | Dostępność (WCAG) | Semantyczne znaczniki, widoczny fokus, kontrast sprawdzony w obu motywach narzędziem axe | częściowo, pełny audyt planowany w przyszłości |
 | Baza PostgreSQL | Schemat z 8 tabelami (użytkownicy, role, wina, degustacje, rezerwacje), indeksy, dane demonstracyjne i warstwa danych przez PDO (encje, repozytoria, DTO, Value Object) | gotowe, aplikacja czyta z bazy wina, degustacje i konta, a zapisuje konta oraz wina |
 | Role użytkowników | `GUEST`, `CELLAR_MASTER`, `ADMIN` (może być ich wielu) i `WINERY_OWNER` (jeden, wymuszone indeksem w bazie) z uprawnieniami sprawdzanymi po stronie serwera (401 bez logowania, 403 przy niewłaściwej roli) | gotowe |
-| Rezerwacje, upload, edycja treści | Rezerwacje degustacji, zdjęcia, edycja treści w panelu | planowane w przyszłości |
+| Rezerwacje degustacji | Zalogowany użytkownik rezerwuje i anuluje miejsca na `/tastings` bez przeładowania strony (`POST /api/reservations`, `DELETE /api/reservations/{id}`); liczbę wolnych miejsc zwraca widok bazy, a zapis działa w transakcji z blokadą terminu, więc nie da się sprzedać więcej miejsc, niż jest | gotowe (Lab 8 i 11) |
+| Upload, edycja treści | Zdjęcia, edycja treści w panelu | planowane w przyszłości |
 
 ## Tech stack
 
@@ -55,6 +56,12 @@ Przy pierwszym starcie z pustym wolumenem bazy tabele i dane demonstracyjne twor
 
 ```bash
 docker compose exec db psql -U app -d app -v ON_ERROR_STOP=1 -f /docker-entrypoint-initdb.d/04-user-administration.sql
+```
+
+Rezerwacje degustacji (widok bazy i terminy demonstracyjne) dopisuje do działającej bazy migracja `05`; aplikacja czyta z tego widoku, więc **bez niej `/tastings` przestaje działać**:
+
+```bash
+docker compose exec db psql -U app -d app -v ON_ERROR_STOP=1 -f /docker-entrypoint-initdb.d/05-tasting-availability.sql
 ```
 
 ## Baza danych (PostgreSQL)
@@ -155,7 +162,7 @@ erDiagram
 | `tasting_sessions` | Terminy degustacji z liczbą miejsc | jeden termin na degustację i godzinę |
 | `reservations` | Rezerwacje gości na terminy | 1–12 miejsc, status `confirmed` lub `cancelled`, jedna rezerwacja użytkownika na termin |
 
-Aplikacja czyta dziś `wines`, `wine_pairings`, `tastings`, `tasting_wines` i `tasting_sessions`, a `users` i `roles` ma w repozytorium użytkowników (jeszcze bez logowania). `reservations` służy na razie tylko do liczenia wolnych miejsc w terminach. Każdy klucz obcy ma jawną akcję `ON DELETE` i `ON UPDATE`: potrawy i powiązania degustacji znikają razem z rodzicem (`CASCADE`), a rola i termin z rezerwacjami nie mogą zostać usunięte (`RESTRICT`). Limit miejsc w terminie nie da się zapisać w `CHECK`, więc ma go pilnować transakcja w aplikacji.
+Aplikacja czyta `wines`, `wine_pairings`, `tastings`, `tasting_wines` i `tasting_sessions`, a `users` i `roles` ma w repozytorium użytkowników. `reservations` zapisuje transakcja rezerwacji (patrz „Rezerwacje degustacji”), a wolne miejsca w terminach liczy widok `tasting_session_availability`. Każdy klucz obcy ma jawną akcję `ON DELETE` i `ON UPDATE`: potrawy i powiązania degustacji znikają razem z rodzicem (`CASCADE`), a rola i termin z rezerwacjami nie mogą zostać usunięte (`RESTRICT`). Limit miejsc w terminie nie da się zapisać w `CHECK` (zależy od innych wierszy), więc pilnuje go transakcja w aplikacji z blokadą wiersza terminu.
 
 Indeksy poza kluczami głównymi i ograniczeniami `UNIQUE` (PostgreSQL nie tworzy ich dla kluczy obcych sam): `wines (category)` dla filtra `?type=`, `users (role_id)`, `tasting_wines (wine_id)`, `tasting_sessions (starts_at)`, `reservations (user_id, created_at DESC)` oraz indeks częściowy `reservations (session_id) WHERE status = 'confirmed'`.
 
@@ -167,6 +174,7 @@ Indeksy poza kluczami głównymi i ograniczeniami `UNIQUE` (PostgreSQL nie tworz
 | `database/02-indexes.sql` | indeksy |
 | `database/03-seed.sql` | dane demonstracyjne: 3 role, 3 konta, 10 win z potrawami, 3 degustacje z terminami i 2 rezerwacje |
 | `database/04-user-administration.sql` | Lab 11: rola `ADMIN`, kolumna `users.is_blocked`, indeks jednego właściciela i konto demonstracyjne administratora; można go uruchomić ponownie bez szkody |
+| `database/05-tasting-availability.sql` | Lab 8 i 11: widok `tasting_session_availability` (zajęte i wolne miejsca w terminie) oraz terminy demonstracyjne na najbliższe cztery soboty (liczone od bieżącego tygodnia); można go uruchomić ponownie bez szkody |
 
 Katalog `database/` jest zamontowany w kontenerze `db` jako `/docker-entrypoint-initdb.d`. PostgreSQL wykonuje te pliki **tylko raz, przy pierwszym starcie z pustym wolumenem** `pg-data`, w kolejności nazw. Jeśli wolumen już istnieje (baza była uruchomiona wcześniej), załaduj schemat ręcznie. Ścieżki wskazują plik wewnątrz kontenera, więc polecenia działają w każdej powłoce:
 
@@ -177,7 +185,7 @@ docker compose exec db psql -U app -d app -v ON_ERROR_STOP=1 \
   -f /docker-entrypoint-initdb.d/03-seed.sql
 ```
 
-Skrypty 01–03 nie są powtarzalne (tworzą tabele), a `04` jest. Aby zacząć od zera i skasować dane bazy: `docker compose down -v`, a potem `docker compose up -d`.
+Skrypty 01–03 nie są powtarzalne (tworzą tabele), a `04` i `05` są. Aby zacząć od zera i skasować dane bazy: `docker compose down -v`, a potem `docker compose up -d`.
 
 ### Warstwa danych (Lab 8)
 
@@ -185,7 +193,7 @@ Wynik zapytania (tablica z `FETCH_ASSOC`) zamieniamy ręcznie na obiekt w repozy
 
 | Rodzaj | Klasy | Rola |
 |--------|-------|------|
-| Entity (ma tożsamość: `id`) | `Wine`, `User`, `Tasting`, `TastingSession` | wiersz z bazy jako obiekt z typami i drobną logiką (`Tasting::durationLabel()`, `TastingSession::seatsFree()`, `User::verifyPassword()`) |
+| Entity (ma tożsamość: `id`) | `Wine`, `User`, `Tasting`, `TastingSession`, `Reservation` | wiersz z bazy jako obiekt z typami i drobną logiką (`Tasting::durationLabel()`, `TastingSession::seatsFree()`, `User::verifyPassword()`) |
 | DTO (pojemnik bez logiki) | `App\Dto\WineData`, `TastedWine` | `WineData` niesie dane wina do zapisu (nowe wino nie ma jeszcze `id`), `TastedWine` to skrót wina na liście degustacji |
 | Value Object (liczy się wartość) | `App\Model\Email`, `Role` (enum) | `Email` jest niezmienny, normalizuje adres do małych liter i waliduje się w konstruktorze, więc każdy obiekt jest poprawny |
 
@@ -196,7 +204,8 @@ Repozytoria (interfejs plus implementacja dla PostgreSQL):
 | `WineRepositoryInterface` | `PostgresWineRepository` (oraz `ContentWineRepository` z pliku) | odczyt win (`findAll`, `findById`, `findRelated`) |
 | `WineWriterInterface` | `PostgresWineRepository` | `create(WineData)`, `update(id, WineData)` i `delete(id)` w transakcjach, `findDataById` do formularza edycji; duplikat nazwy i rocznika rzuca `DuplicateWineException` |
 | `UserRepositoryInterface` | `PostgresUserRepository` | `users JOIN roles`, `create` (duplikat adresu rzuca `EmailAlreadyUsedException`), `delete` |
-| `TastingRepositoryInterface` | `PostgresTastingRepository` | `tasting_wines JOIN wines` oraz `tasting_sessions LEFT JOIN reservations` z `GROUP BY` do wolnych miejsc |
+| `TastingRepositoryInterface` | `PostgresTastingRepository` | `tasting_wines JOIN wines` oraz widok `tasting_session_availability` (terminy z wolnymi miejscami: `findUpcomingSessions`, `findSession`) |
+| `ReservationRepositoryInterface` | `PostgresReservationRepository` | `book()` i `cancel()` w transakcji z `SELECT ... FOR UPDATE`, `findConfirmedByUser()`; błędy biznesowe jako `ReservationException` z powodem |
 
 Kontrolery dostają repozytorium przez konstruktor (domyślnie wersję dla PostgreSQL), więc w testach i w kolejnych laboratoriach można je podmienić. Formatowanie cen w jednym miejscu robi `App\Service\PriceFormatter`.
 
@@ -285,7 +294,7 @@ my-app/
 ├── config/
 │   ├── content.php          # wszystkie teksty i dane marki (domyślnie Corvo Bianco)
 │   └── database.php         # dane połączenia z bazą (ze zmiennych środowiskowych)
-├── database/                # skrypty SQL: schemat, indeksy, dane demonstracyjne, administracja użytkownikami (04)
+├── database/                # skrypty SQL: schemat, indeksy, dane demonstracyjne, administracja użytkownikami (04), widok wolnych miejsc (05)
 ├── docker/                  # Dockerfile'e i konfiguracja nginx, php, db
 ├── public/
 │   ├── index.php            # front controller, definicje tras
@@ -294,6 +303,7 @@ my-app/
 │   ├── js/app.js            # punkt wejścia JavaScriptu (moduł ES), uruchamia moduły z js/modules/
 │   ├── js/modules/          # walidacja formularzy, pokaż hasło, licznik znaków, wyszukiwarka win
 │   ├── js/users.js          # panel użytkowników (Fetch API), ładowany tylko na /admin/users
+│   ├── js/reservations.js   # rezerwacje terminów (Fetch API), ładowany tylko na /tastings
 │   └── views/               # widoki *.html.php (sam element <main>)
 │       ├── layout.html.php  # wspólny szkielet strony, składa head, nagłówek, treść i stopkę
 │       ├── error.html.php   # wspólny widok błędów 400, 401, 403, 404 i 500
@@ -304,7 +314,7 @@ my-app/
 ├── src/
 │   ├── Database.php         # tworzy połączenie PDO z PostgreSQL
 │   ├── Routing.php          # router
-│   ├── Exception/           # HttpException i wyjątki 400, 401, 403, 404, ApiException (błędy JSON) oraz wyjątki domenowe (zajęty e-mail, duplikat wina, zablokowane konto)
+│   ├── Exception/           # HttpException i wyjątki 400, 401, 403, 404, ApiException (błędy JSON) oraz wyjątki domenowe (zajęty e-mail, duplikat wina, zablokowane konto, ReservationException)
 │   ├── Dto/WineData.php     # DTO z danymi wina do zapisu
 │   ├── Model/               # encje (Wine, User, Tasting, TastingSession), Value Object Email, enum Role i Permission, TastedWine
 │   ├── Repository/          # interfejsy i implementacje dla PostgreSQL (wina, użytkownicy, degustacje) oraz ContentWineRepository (plik)
@@ -315,7 +325,7 @@ my-app/
 │   │   ├── SiteContent.php  # odczyt tekstów z config/content.php
 │   │   ├── UserAdminService.php # reguły panelu: kto kogo może blokować, usuwać i awansować
 │   │   └── Validator.php    # walidacja danych z formularzy po stronie serwera
-│   └── controllers/         # kontrolery (AppController jako baza z pomocnikami sesji i CSRF, SecurityController, AccountController, AdminController, UserApiController, WineManagementController, ErrorController)
+│   └── controllers/         # kontrolery (AppController jako baza z pomocnikami sesji i CSRF, SecurityController, AccountController, AdminController, UserApiController, ReservationApiController, WineManagementController, ErrorController)
 ├── docker-compose.yaml
 ├── composer.json
 └── AGENTS.MD                # zasady pracy z asystentem AI
@@ -357,6 +367,9 @@ Wygląd obu motywów opisują zmienne CSS w `public/css/style.css`: motyw jasny 
 | DELETE | `/api/users/{id}` | Usunięcie konta (204); token w nagłówku `X-CSRF-Token` |
 | PATCH | `/api/users/{id}/block` | Blokada albo odblokowanie konta, ciało `{"blocked": true}` |
 | PATCH | `/api/users/{id}/role` | Zmiana roli (`GUEST`, `CELLAR_MASTER`, `ADMIN`), ciało `{"role": "ADMIN"}`; tylko `WINERY_OWNER` |
+| GET | `/api/tasting-sessions` | JSON z najbliższymi terminami i wolnymi miejscami; dla zalogowanego także jego rezerwacja (`myReservation`) |
+| POST | `/api/reservations` | Rezerwacja miejsc, ciało `{"sessionId": 5, "seats": 2}` (201); wymaga logowania i nagłówka `X-CSRF-Token` |
+| DELETE | `/api/reservations/{id}` | Anulowanie własnej rezerwacji (200 ze stanem terminu) |
 
 ## Parametry w adresie
 
@@ -402,7 +415,7 @@ Jak działa walidacja w przeglądarce:
 
 - pole jest sprawdzane po opuszczeniu zmienionego pola (`change`); gdy ma już błąd, komunikat poprawia się przy każdym znaku (`input`), a potwierdzenie hasła jest sprawdzane ponownie po zmianie hasła,
 - przy wysyłaniu (`submit`) sprawdzane są wszystkie pola; przy błędach formularz nie jest wysyłany, nad nim pojawia się podsumowanie z linkami do pól, a fokus trafia na pierwsze błędne pole,
-- komunikaty pochodzą z `config/content.php` (sekcje `validation`, `forms`, `js`, a w panelu użytkowników także `admin` i `roles`): layout wypisuje je jako JSON w `<script type="application/json" id="js-messages">`, więc kod JavaScript nie zawiera żadnych napisów i podąży za tłumaczeniem,
+- komunikaty pochodzą z `config/content.php` (sekcje `validation`, `forms`, `js`, a w panelu użytkowników także `admin` i `roles`, na stronie degustacji `tastings` i `reservations`): layout wypisuje je jako JSON w `<script type="application/json" id="js-messages">`, więc kod JavaScript nie zawiera żadnych napisów i podąży za tłumaczeniem,
 - tekst błędów trafia do strony przez `textContent`, nigdy przez `innerHTML`,
 - to tylko wygoda użytkownika: serwer waliduje te same dane jeszcze raz, bo żądanie można wysłać z pominięciem JavaScriptu.
 
@@ -417,6 +430,17 @@ Panel `/admin/users` (`AdminController::index`) zwraca tylko szkielet strony. `p
 - **Stany interfejsu:** wczytywanie, lista, pusta lista, błąd sieci (z limitem czasu 15 s) i błąd odpowiedzi API, oba z przyciskiem „Spróbuj ponownie”. Kontrolki wiersza są wyłączone na czas żądania, a po akcji fokus wraca na przycisk. Usuwanie wymaga potwierdzenia w wierszu (przycisk zamienia się w pytanie), wynik akcji czyta region `role="status"`.
 - **Bezpieczeństwo:** każda akcja zaczyna się od `requirePermission()` (401 i 403), potem sprawdzany jest token z nagłówka `X-CSRF-Token`. Flagi `canBlock`, `canDelete` i `canChangeRole` w odpowiedzi tylko ukrywają przyciski, a reguły i tak sprawdza `UserAdminService` przy każdej akcji. Odpowiedzi mają `Cache-Control: no-store` i nie zawierają skrótów haseł.
 - **Teksty:** wszystkie napisy panelu są w `config/content.php` (`admin`, `roles`, `api_errors`); sekcje `admin` i `roles` layout przekazuje do JS w bloku `#js-messages`.
+
+## Rezerwacje degustacji (Lab 8 i 11)
+
+Strona `/tastings` nadal jest renderowana po stronie serwera (lista ofert i terminów działa bez JavaScriptu). Zalogowany użytkownik dostaje dodatkowo token CSRF w atrybucie `data-csrf-token`, a moduł `public/js/reservations.js` dokłada do każdego terminu formularz rezerwacji albo przycisk anulowania. Rezerwacja wymaga JavaScriptu: formularza bez skryptu nie ma.
+
+- **Widok w bazie** (`database/05-tasting-availability.sql`): `tasting_session_availability` zwraca dla terminu `seats_total`, `seats_booked` (suma miejsc w rezerwacjach `confirmed`), `seats_free` i `max_seats` (mniejsze z limitu degustacji i 12). Repozytorium nie liczy miejsc samo, tylko czyta widok, więc strona i API zawsze widzą tę samą liczbę.
+- **Transakcja** (`PostgresReservationRepository::book`): `BEGIN`, blokada wiersza terminu przez `SELECT ... FOR UPDATE`, sprawdzenie (termin istnieje, jest w przyszłości, grupa mieści się w limicie, użytkownik nie ma już potwierdzonej rezerwacji, wystarczy miejsc), zapis i `COMMIT`; każdy błąd kończy się `ROLLBACK`. Blokada ustawia równoległe rezerwacje tego samego terminu w kolejkę. Test: 12 osób po 1 miejscu na 8 wolnych daje 8 rezerwacji i 4 odmowy, a bez blokady zapisałoby się wszystkie 12. Anulowana rezerwacja zostaje w tabeli (`UNIQUE (user_id, session_id)`), a ponowna rezerwacja zmienia jej status z powrotem na `confirmed`.
+- **API** (`ReservationApiController`): `GET /api/tasting-sessions` (publiczne, dla zalogowanego z `myReservation`), `POST /api/reservations` z ciałem JSON `{"sessionId": 5, "seats": 2}` i `DELETE /api/reservations/{id}`. Każda zmiana wymaga logowania (401) i tokenu w nagłówku `X-CSRF-Token` (403).
+- **Kody odpowiedzi POST:** 201, 400 (ciało nie jest JSON), 401, 403, 404 (brak terminu), 409 (termin minął, brak miejsc, masz już rezerwację), 422 (zła liczba osób lub grupa większa niż limit). Odpowiedź błędu ma ten sam kształt co w panelu: `{"error": {"status", "reason", "message"}}`, a teksty są w `config/content.php` (`api_errors`).
+- **Interfejs:** pole liczby osób ma `max` równe mniejszej z wartości: limit grupy i wolne miejsca, formularz jest też sprawdzany po stronie serwera. Na czas żądania kontrolki są wyłączone, a fokus zostaje na nowym przycisku. Po odpowiedzi 409 lub 404 skrypt sam pobiera aktualne terminy, żeby pokazać prawdziwą liczbę miejsc; odświeża je też, gdy karta przeglądarki znów staje się widoczna.
+- **Dane demonstracyjne:** terminy z `03-seed.sql` kończą się 13.12.2026, więc `05` dodaje cztery najbliższe soboty (dla każdej degustacji, bez duplikatów).
 
 ## Uwierzytelnianie i sesje (Lab 9)
 

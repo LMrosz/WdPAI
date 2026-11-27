@@ -8,7 +8,7 @@ VinoKeep to aplikacja dla winnicy i enoturystyki, tworzona w ramach kursu *Wstę
 
 Role użytkowników (enum `App\Model\Role`, uprawnienia w `Role::permissions()`):
 
-- `GUEST` — gość rezerwujący degustacje (rezerwacje jeszcze nie istnieją), tylko przegląda,
+- `GUEST` — gość: przegląda ofertę, a po zalogowaniu rezerwuje i anuluje miejsca na degustacje (`POST /api/reservations`, `DELETE /api/reservations/{id}`; to czynność każdego zalogowanego użytkownika, nie osobne uprawnienie),
 - `CELLAR_MASTER` — piwniczy: dodaje i edytuje wina (`Permission::ManageWines`),
 - `ADMIN` — administrator (może być wielu): jak piwniczy, a dodatkowo usuwa wina (`Permission::DeleteWines`) i zarządza kontami zwykłych użytkowników (`Permission::ManageUsers`),
 - `WINERY_OWNER` — właściciel winnicy (jedna osoba, pilnuje tego indeks w bazie): wszystko, co administrator, a do tego zarządza administratorami (`Permission::ManageAdmins`): nadaje i odbiera rolę `ADMIN`, blokuje i usuwa ich konta.
@@ -23,8 +23,9 @@ Aktualnie aplikacja obsługuje:
 - walidację formularzy po stronie serwera (`App\Service\Validator`, komunikaty w `config/content.php` pod kluczem `validation`); reguły pól są zapisane tekstem (`'max_length:254'`) w jednym miejscu i trafiają zarówno do `Validator::withRules()`, jak i do atrybutu `data-rules`,
 - JavaScript (Lab 10) w `public/js/app.js` i `public/js/modules/`: walidacja formularzy w przeglądarce (te same reguły co serwer), pokazywanie błędów w DOM, przycisk „Pokaż hasło”, licznik znaków i wyszukiwarka win; teksty dla JS są w `config/content.php` (sekcje `validation`, `forms`, `js`, a w panelu użytkowników także `admin` i `roles`), a bez JS strona działa jak wcześniej,
 - panel użytkowników (Lab 11) pod `/admin/users` (`AdminController`, `public/js/users.js`) i API JSON (`UserApiController`: `GET /api/users`, `DELETE /api/users/{id}`, `PATCH /api/users/{id}/block`, `PATCH /api/users/{id}/role`) z blokowaniem kont (`users.is_blocked`), tokenem CSRF w nagłówku `X-CSRF-Token` i regułami w `App\Service\UserAdminService`; błędy pod `/api/` są w JSON (`ErrorController::showJson`, teksty w `api_errors`).
+- rezerwacje degustacji na `/tastings` (`public/js/reservations.js`, `ReservationApiController`: `GET /api/tasting-sessions`, `POST /api/reservations`, `DELETE /api/reservations/{id}`): rezerwacja działa tylko z JavaScriptem, zapis idzie w transakcji z `SELECT ... FOR UPDATE` na wierszu terminu (`PostgresReservationRepository::book`), błędy biznesowe to `ReservationException` z powodem mapowanym na kod HTTP w kontrolerze; nie liczymy miejsc w PHP ani w innym zapytaniu niż widok `tasting_session_availability`.
 
-Baza PostgreSQL jest podłączona dla win (`wines`, `wine_pairings`), degustacji (`tastings`, `tasting_wines`, `tasting_sessions`, wolne miejsca liczone z `reservations`) i kont (`users`, `roles` przez `PostgresUserRepository`). Rezerwacji degustacji (zapis do `reservations`), uploadu i edycji treści w panelu jeszcze nie ma — nie opisuj ich jako istniejących.
+Baza PostgreSQL jest podłączona dla win (`wines`, `wine_pairings`), degustacji (`tastings`, `tasting_wines`, `tasting_sessions`; wolne miejsca czyta widok `tasting_session_availability`), rezerwacji (`reservations` przez `PostgresReservationRepository`) i kont (`users`, `roles` przez `PostgresUserRepository`). Uploadu i edycji treści w panelu jeszcze nie ma — nie opisuj ich jako istniejących.
 
 ## Stack technologiczny
 
@@ -41,14 +42,14 @@ Baza PostgreSQL jest podłączona dla win (`wines`, `wine_pairings`), degustacji
 .
 ├── bin/                       # skrypty CLI: demo-wines-crud.php, demo-repositories.php, demo-auth.php (uruchamiane w kontenerze php)
 ├── config/                    # content.php (teksty i dane marki), database.php (połączenie z bazą ze zmiennych środowiskowych)
-├── database/                  # skrypty SQL: 01-schema, 02-indexes, 03-seed, 04-user-administration (wykonywane raz przy pierwszym starcie bazy; 04 można też uruchomić na istniejącej bazie)
+├── database/                  # skrypty SQL: 01-schema, 02-indexes, 03-seed, 04-user-administration, 05-tasting-availability (wykonywane raz przy pierwszym starcie bazy; 04 i 05 można też uruchomić na istniejącej bazie)
 ├── docker/
 │   ├── db/                    # obraz PostgreSQL
 │   ├── nginx/                 # obraz i konfiguracja Nginx
 │   └── php/                   # obraz PHP-FPM, rozszerzenia PHP i Composer
 ├── public/                    # jedyny publicznie dostępny katalog
 │   ├── css/style.css          # globalne style i zmienne projektu
-│   ├── js/                    # app.js (moduły ES z modules/), users.js (panel użytkowników), theme.js
+│   ├── js/                    # app.js (moduły ES z modules/), users.js (panel użytkowników), reservations.js (rezerwacje na /tastings), theme.js
 │   ├── index.php              # front controller i definicje tras
 │   └── views/                 # szablony HTML (*.html.php)
 │       ├── home.html.php      # strona główna
@@ -64,7 +65,7 @@ Baza PostgreSQL jest podłączona dla win (`wines`, `wine_pairings`), degustacji
 │   ├── Dto/                   # App\Dto\* — WineData (DTO do zapisu)
 │   ├── Model/                 # App\Model\* — Wine, User, Tasting, TastingSession, TastedWine, Email (Value Object), Role i Permission (enumy)
 │   ├── Database.php           # App\Database — jedyne miejsce tworzące połączenie PDO
-│   ├── Repository/            # App\Repository\* — interfejsy i implementacje PostgreSQL: Wine, User, Tasting (+ ContentWineRepository)
+│   ├── Repository/            # App\Repository\* — interfejsy i implementacje PostgreSQL: Wine, User, Tasting, Reservation (+ ContentWineRepository)
 │   ├── Service/               # App\Service\* — SiteContent, Validator, PriceFormatter, Session, AuthService
 │   └── Routing.php            # App\Routing — rejestracja i obsługa tras
 ├── AGENTS.MD                  # ten plik
@@ -208,7 +209,7 @@ docker compose up --build -d
 
 Aplikacja jest dostępna pod `http://localhost:8080` (port ustawiony w `docker-compose.yaml`).
 
-Na istniejącą bazę (wolumen już istnieje) migrację z Lab 11 dopisuje się poleceniem `docker compose exec db psql -U app -d app -v ON_ERROR_STOP=1 -f /docker-entrypoint-initdb.d/04-user-administration.sql`.
+Na istniejącą bazę (wolumen już istnieje) migracje z Lab 11 dopisuje się poleceniami `docker compose exec db psql -U app -d app -v ON_ERROR_STOP=1 -f /docker-entrypoint-initdb.d/04-user-administration.sql` i tak samo `.../05-tasting-availability.sql`. Kod czyta widok z `05`, więc bez tej migracji `/tastings` nie działa. Ścieżka pliku jest wewnątrz kontenera, więc polecenie działa w każdej powłoce (bez przekierowania `<`).
 
 Przydatne polecenia:
 
@@ -263,4 +264,4 @@ W projekcie nie ma obecnie skonfigurowanego zestawu testów automatycznych ani n
 - Nie rozszerzaj zakresu zadania o refaktoryzacje, migracje lub nowe zależności bez uzasadnienia.
 - Przy zadaniach kursowych wykonuj dokładnie to, co opisuje polecenie — nic ponad nie.
 - Jeśli wymaganie jest niejednoznaczne, wybierz rozwiązanie zgodne z istniejącymi wzorcami; pytaj tylko wtedy, gdy wybór istotnie zmieni zachowanie aplikacji.
-- Po zakończeniu opisz zmienione pliki oraz wykonaną weryfikację.
+- Po zakończeniu opisz zmienione pliki oraz wykonaną weryfikację.
