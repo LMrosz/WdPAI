@@ -45,7 +45,7 @@
 }
 
 /* Białe powierzchnie motywu jasnego: tu wracają ciemne kolory tekstu i bordowe akcenty */
-:root:not([data-theme="dark"]) :is(.site-header, .site-footer, .card, .stat-card, .auth-card, .cta-box) {
+:root:not([data-theme="dark"]) :is(.site-header, .site-footer, .card, .stat-card, .auth-card, .cta-box, .admin .form-status, .admin .form-errors) {
   --color-canvas: #fbf6f3;           /* tło pól formularza na białej karcie */
   --color-text: #241015;
   --color-muted: #5e4b50;
@@ -651,6 +651,95 @@ nav :is(a, .link-button) {
 
 .delete-confirm form {
   margin-top: var(--space-md);
+}
+
+/* Panel użytkowników (/admin/users, public/js/users.js): wiersz to karta, w której treść zawija się na wąskich ekranach */
+.user-list {
+  display: grid;
+  gap: var(--space-md);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.card.user-row {
+  flex-flow: row wrap;
+  align-items: center;
+  gap: var(--space-md) var(--space-lg);
+  height: auto;
+}
+
+.user-row--blocked {
+  border-left: 4px solid var(--color-error);
+}
+
+.user-main {
+  display: flex;
+  flex: 1 1 16rem;
+  flex-direction: column;
+  gap: var(--space-xs);
+  min-width: 0;
+}
+
+.user-name {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-sm);
+  font-weight: 600;
+}
+
+.user-email {
+  overflow-wrap: anywhere;
+}
+
+.card .user-meta {
+  color: var(--color-muted);
+  font-size: 0.8125rem;
+}
+
+/* znaczniki „To Ty” i „Zablokowane” przy nazwie: kapsuły jak odznaka nagrody */
+.user-tag {
+  padding: 0 var(--space-sm);
+  border: 1px solid var(--color-gold-trim);
+  border-radius: 9999px;
+  font-size: 0.6875rem;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.user-tag--blocked {
+  color: var(--color-error);
+  border-color: var(--color-error);
+}
+
+.user-role select {
+  width: auto;
+  min-width: 11rem;
+}
+
+.user-actions,
+.user-confirm {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-sm);
+}
+
+.user-confirm p {
+  flex: 1 1 100%;
+}
+
+/* mniejszy przycisk w wierszu listy; wysokość nadal przekracza 24 px (WCAG 2.2, 2.5.8) */
+.button--small {
+  padding: var(--space-sm) var(--space-md);
+}
+
+.button:disabled,
+select:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
 }
 
 /* Katalog (wina, degustacje): Grid z kartami, liczba kolumn dopasowuje się do szerokości */
