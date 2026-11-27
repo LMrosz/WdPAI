@@ -21,6 +21,7 @@ final class ErrorController extends AppController
         401 => 'unauthorized',
         403 => 'forbidden',
         404 => 'not_found',
+        409 => 'conflict',
         422 => 'invalid_body',
         500 => 'server_error',
     ];

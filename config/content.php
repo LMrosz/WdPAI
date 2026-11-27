@@ -459,6 +459,22 @@ return [
         'done_role' => 'Konto {email} ma teraz rolę: {role}.',
     ],
 
+    // Rezerwacje na /tastings (public/js/reservations.js); sekcja trafia do przeglądarki w #js-messages.
+    'reservations' => [
+        'seats_label' => 'Liczba osób',
+        'book' => 'Zarezerwuj',
+        'book_label' => 'Zarezerwuj termin {date}',
+        'mine' => 'Twoja rezerwacja: {seats} os.',
+        'cancel' => 'Anuluj rezerwację',
+        'cancel_label' => 'Anuluj rezerwację na {date}',
+        'invalid_seats' => 'Podaj liczbę osób od 1 do {max}.',
+        'done_booked' => 'Rezerwacja potwierdzona: {date}, liczba osób: {seats}.',
+        'done_cancelled' => 'Rezerwacja na {date} została anulowana.',
+        'error_load' => 'Nie udało się odświeżyć terminów.',
+        'error_network' => 'Brak połączenia z serwerem. Sprawdź internet i spróbuj ponownie.',
+        'error_unknown' => 'Coś poszło nie tak. Spróbuj ponownie za chwilę.',
+    ],
+
     // Komunikaty błędów API (JSON): klucz to "reason" z odpowiedzi {"error": {...}}.
     'api_errors' => [
         'bad_request' => 'Żądanie jest nieprawidłowe.',
@@ -472,6 +488,14 @@ return [
         'admin_protected' => 'Kontami administratorów zarządza tylko właściciel winnicy.',
         'owner_only' => 'Role nadaje tylko właściciel winnicy.',
         'role_not_assignable' => 'Tej roli nie można nadać.',
+        'conflict' => 'To żądanie koliduje z aktualnym stanem. Odśwież stronę i spróbuj ponownie.',
+        'invalid_seats' => 'Podaj liczbę osób od 1 do 12.',
+        'session_not_found' => 'Nie ma takiego terminu.',
+        'session_past' => 'Ten termin już się odbył.',
+        'group_too_large' => 'Liczba osób przekracza limit grupy dla tej degustacji.',
+        'not_enough_seats' => 'W tym terminie nie ma już tylu wolnych miejsc. Terminy zostały odświeżone.',
+        'already_booked' => 'Masz już rezerwację na ten termin.',
+        'reservation_not_found' => 'Nie ma takiej rezerwacji.',
         'server_error' => 'Wystąpił błąd po naszej stronie. Spróbuj ponownie za chwilę.',
     ],
 
