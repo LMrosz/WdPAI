@@ -13,10 +13,13 @@ use PDO;
 /**
  * Degustacje z PostgreSQL. Trzy zapytania zamiast jednego z powielonymi wierszami
  * (wina i terminy mnożyłyby się nawzajem): degustacje, ich wina (JOIN tasting_wines → wines)
- * oraz terminy z zajętymi miejscami (LEFT JOIN reservations + GROUP BY).
+ * oraz terminy z widoku tasting_session_availability, który liczy zajęte miejsca
+ * (LEFT JOIN reservations + GROUP BY) w jednym miejscu, także dla rezerwacji.
  */
 final class PostgresTastingRepository implements TastingRepositoryInterface
 {
+    private const SESSION_COLUMNS = 'SELECT session_id, tasting_id, tasting_name, starts_at, seats_total, seats_booked, max_seats';
+
     public function __construct(private readonly PDO $database)
     {
     }
@@ -81,7 +84,8 @@ final class PostgresTastingRepository implements TastingRepositoryInterface
     }
 
     /**
-     * Tylko przyszłe terminy; zajęte miejsca to suma miejsc z potwierdzonych rezerwacji.
+     * Tylko przyszłe terminy, z widoku tasting_session_availability (zajęte miejsca to suma
+     * miejsc z potwierdzonych rezerwacji).
      *
      * @param list<int> $tastingIds
      * @return array<int, list<TastingSession>>
@@ -93,28 +97,58 @@ final class PostgresTastingRepository implements TastingRepositoryInterface
         }
 
         $statement = $this->database->prepare(
-            "SELECT s.id, s.tasting_id, s.starts_at, s.seats_total, COALESCE(SUM(r.seats), 0) AS seats_booked
-             FROM tasting_sessions s
-             LEFT JOIN reservations r ON r.session_id = s.id AND r.status = 'confirmed'
-             WHERE s.tasting_id IN (" . $this->placeholders($tastingIds) . ')
-               AND s.starts_at >= CURRENT_TIMESTAMP
-             GROUP BY s.id
-             ORDER BY s.starts_at'
+            self::SESSION_COLUMNS . '
+             FROM tasting_session_availability
+             WHERE tasting_id IN (' . $this->placeholders($tastingIds) . ')
+               AND starts_at >= CURRENT_TIMESTAMP
+             ORDER BY starts_at'
         );
         $statement->execute($tastingIds);
 
         $sessions = [];
 
         foreach ($statement->fetchAll() as $row) {
-            $sessions[(int) $row['tasting_id']][] = new TastingSession(
-                id: (int) $row['id'],
-                startsAt: new \DateTimeImmutable((string) $row['starts_at']),
-                seatsTotal: (int) $row['seats_total'],
-                seatsBooked: (int) $row['seats_booked'],
-            );
+            $sessions[(int) $row['tasting_id']][] = $this->mapSession($row);
         }
 
         return $sessions;
+    }
+
+    public function findUpcomingSessions(): array
+    {
+        $rows = $this->database->query(
+            self::SESSION_COLUMNS . '
+             FROM tasting_session_availability
+             WHERE starts_at >= CURRENT_TIMESTAMP
+             ORDER BY starts_at, session_id'
+        )->fetchAll();
+
+        return array_map($this->mapSession(...), $rows);
+    }
+
+    public function findSession(int $sessionId): ?TastingSession
+    {
+        $statement = $this->database->prepare(
+            self::SESSION_COLUMNS . ' FROM tasting_session_availability WHERE session_id = :id'
+        );
+        $statement->execute(['id' => $sessionId]);
+        $row = $statement->fetch();
+
+        return $row === false ? null : $this->mapSession($row);
+    }
+
+    /** @param array<string, mixed> $row wiersz widoku tasting_session_availability */
+    private function mapSession(array $row): TastingSession
+    {
+        return new TastingSession(
+            id: (int) $row['session_id'],
+            startsAt: new \DateTimeImmutable((string) $row['starts_at']),
+            seatsTotal: (int) $row['seats_total'],
+            seatsBooked: (int) $row['seats_booked'],
+            tastingId: (int) $row['tasting_id'],
+            tastingName: (string) $row['tasting_name'],
+            maxSeats: (int) $row['max_seats'],
+        );
     }
 
     /** @param list<int> $values */

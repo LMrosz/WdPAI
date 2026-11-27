@@ -14,6 +14,8 @@ $jsMessages = json_encode([
     'forms' => $content->get('forms'),
     'js' => $content->get('js'),
     'admin' => $content->get('admin'),
+    'tastings' => $content->get('tastings'),
+    'reservations' => $content->get('reservations'),
     'roles' => $content->get('roles'),
 ], JSON_UNESCAPED_UNICODE | JSON_HEX_TAG | JSON_HEX_AMP | JSON_THROW_ON_ERROR);
 ?>

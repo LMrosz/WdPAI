@@ -25,6 +25,7 @@ final class TastingController extends AppController
             'activePage' => 'tastings',
             'tastings' => $this->tastings->findAll(),
             'steps' => $this->content()->get('tastings.steps') ?? [],
+            'pageScripts' => ['/js/reservations.js'],
         ], true);
     }
 }

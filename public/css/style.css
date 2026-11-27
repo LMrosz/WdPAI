@@ -45,7 +45,7 @@
 }
 
 /* Białe powierzchnie motywu jasnego: tu wracają ciemne kolory tekstu i bordowe akcenty */
-:root:not([data-theme="dark"]) :is(.site-header, .site-footer, .card, .stat-card, .auth-card, .cta-box, .admin .form-status, .admin .form-errors) {
+:root:not([data-theme="dark"]) :is(.site-header, .site-footer, .card, .stat-card, .auth-card, .cta-box, .admin .form-status, .admin .form-errors, [data-reservations] .form-status, [data-reservations] .form-errors) {
   --color-canvas: #fbf6f3;           /* tło pól formularza na białej karcie */
   --color-text: #241015;
   --color-muted: #5e4b50;
@@ -740,6 +740,43 @@ nav :is(a, .link-button) {
 select:disabled {
   opacity: 0.6;
   cursor: not-allowed;
+}
+
+/* Rezerwacja pod terminem degustacji (public/js/reservations.js): formularz zawija się w nowy wiersz karty,
+   a terminy oddziela cienka linia, żeby przy formularzach nie zlewały się w jedną listę */
+.card-sessions {
+  gap: var(--space-sm);
+}
+
+.card-sessions li {
+  align-items: center;
+  padding-top: var(--space-sm);
+}
+
+.card-sessions li + li {
+  border-top: 1px solid var(--color-border);
+}
+
+.session-booking {
+  display: flex;
+  flex: 1 1 100%;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-sm);
+  margin-top: var(--space-xs);
+}
+
+.session-booking label {
+  font-size: 0.8125rem;
+}
+
+.session-booking input {
+  width: 4.5rem;
+  padding: var(--space-sm);
+}
+
+.session-booking--mine {
+  font-weight: 600;
 }
 
 /* Katalog (wina, degustacje): Grid z kartami, liczba kolumn dopasowuje się do szerokości */
