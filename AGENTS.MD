@@ -10,7 +10,8 @@ Role użytkowników (enum `App\Model\Role`, uprawnienia w `Role::permissions()`)
 
 - `GUEST` — gość rezerwujący degustacje (rezerwacje jeszcze nie istnieją), tylko przegląda,
 - `CELLAR_MASTER` — piwniczy: dodaje i edytuje wina (`Permission::ManageWines`),
-- `WINERY_OWNER` — właściciel winnicy: jak piwniczy, a dodatkowo usuwa wina (`Permission::DeleteWines`).
+- `ADMIN` — administrator (może być wielu): jak piwniczy, a dodatkowo usuwa wina (`Permission::DeleteWines`) i zarządza kontami zwykłych użytkowników (`Permission::ManageUsers`),
+- `WINERY_OWNER` — właściciel winnicy (jedna osoba, pilnuje tego indeks w bazie): wszystko, co administrator, a do tego zarządza administratorami (`Permission::ManageAdmins`): nadaje i odbiera rolę `ADMIN`, blokuje i usuwa ich konta.
 
 Aktualnie aplikacja obsługuje:
 
@@ -20,9 +21,10 @@ Aktualnie aplikacja obsługuje:
 - dodawanie, edycję i usuwanie win (`WineManagementController`, trasy `/wines/new`, `/wines/{id}/edit`, `POST /wines`, `POST /wines/{id}/edit`, `POST /wines/{id}/delete`) z walidacją, uprawnieniami ról i komunikatami po przekierowaniu (`flash()`),
 - strony błędów 400, 401, 403, 404 i 500 (`ErrorController::show`, widok `error.html.php`); router rzuca `NotFoundException`, a front controller zamienia `HttpException` (w tym `UnauthorizedException` i `ForbiddenException`) na stronę błędu,
 - walidację formularzy po stronie serwera (`App\Service\Validator`, komunikaty w `config/content.php` pod kluczem `validation`); reguły pól są zapisane tekstem (`'max_length:254'`) w jednym miejscu i trafiają zarówno do `Validator::withRules()`, jak i do atrybutu `data-rules`,
-- JavaScript (Lab 10) w `public/js/app.js` i `public/js/modules/`: walidacja formularzy w przeglądarce (te same reguły co serwer), pokazywanie błędów w DOM, przycisk „Pokaż hasło”, licznik znaków i wyszukiwarka win; teksty dla JS są w `config/content.php` (sekcje `validation`, `forms`, `js`), a bez JS strona działa jak wcześniej.
+- JavaScript (Lab 10) w `public/js/app.js` i `public/js/modules/`: walidacja formularzy w przeglądarce (te same reguły co serwer), pokazywanie błędów w DOM, przycisk „Pokaż hasło”, licznik znaków i wyszukiwarka win; teksty dla JS są w `config/content.php` (sekcje `validation`, `forms`, `js`, a w panelu użytkowników także `admin` i `roles`), a bez JS strona działa jak wcześniej,
+- panel użytkowników (Lab 11) pod `/admin/users` (`AdminController`, `public/js/users.js`) i API JSON (`UserApiController`: `GET /api/users`, `DELETE /api/users/{id}`, `PATCH /api/users/{id}/block`, `PATCH /api/users/{id}/role`) z blokowaniem kont (`users.is_blocked`), tokenem CSRF w nagłówku `X-CSRF-Token` i regułami w `App\Service\UserAdminService`; błędy pod `/api/` są w JSON (`ErrorController::showJson`, teksty w `api_errors`).
 
-Baza PostgreSQL jest podłączona dla win (`wines`, `wine_pairings`), degustacji (`tastings`, `tasting_wines`, `tasting_sessions`, wolne miejsca liczone z `reservations`) i kont (`users`, `roles` przez `PostgresUserRepository`). Rezerwacji degustacji (zapis do `reservations`), uploadu i panelu administratora jeszcze nie ma — nie opisuj ich jako istniejących.
+Baza PostgreSQL jest podłączona dla win (`wines`, `wine_pairings`), degustacji (`tastings`, `tasting_wines`, `tasting_sessions`, wolne miejsca liczone z `reservations`) i kont (`users`, `roles` przez `PostgresUserRepository`). Rezerwacji degustacji (zapis do `reservations`), uploadu i edycji treści w panelu jeszcze nie ma — nie opisuj ich jako istniejących.
 
 ## Stack technologiczny
 
@@ -39,19 +41,21 @@ Baza PostgreSQL jest podłączona dla win (`wines`, `wine_pairings`), degustacji
 .
 ├── bin/                       # skrypty CLI: demo-wines-crud.php, demo-repositories.php, demo-auth.php (uruchamiane w kontenerze php)
 ├── config/                    # content.php (teksty i dane marki), database.php (połączenie z bazą ze zmiennych środowiskowych)
-├── database/                  # skrypty SQL: 01-schema, 02-indexes, 03-seed (wykonywane raz przy pierwszym starcie bazy)
+├── database/                  # skrypty SQL: 01-schema, 02-indexes, 03-seed, 04-user-administration (wykonywane raz przy pierwszym starcie bazy; 04 można też uruchomić na istniejącej bazie)
 ├── docker/
 │   ├── db/                    # obraz PostgreSQL
 │   ├── nginx/                 # obraz i konfiguracja Nginx
 │   └── php/                   # obraz PHP-FPM, rozszerzenia PHP i Composer
 ├── public/                    # jedyny publicznie dostępny katalog
 │   ├── css/style.css          # globalne style i zmienne projektu
+│   ├── js/                    # app.js (moduły ES z modules/), users.js (panel użytkowników), theme.js
 │   ├── index.php              # front controller i definicje tras
 │   └── views/                 # szablony HTML (*.html.php)
 │       ├── home.html.php      # strona główna
 │       ├── login.html.php     # logowanie
 │       ├── register.html.php  # rejestracja
 │       ├── account.html.php   # konto zalogowanego użytkownika
+│       ├── admin-users.html.php # panel użytkowników (listę rysuje js/users.js)
 │       ├── wine-form.html.php # formularz dodawania i edycji wina
 │       └── error.html.php     # błędy 400, 401, 403, 404, 500
 ├── src/
@@ -113,7 +117,7 @@ $routing->post('/example', ExampleController::class, 'store');
 
 Przykład: trasa `/wines/{id}` wywołuje `WineController::show(string $id)`.
 
-Router obsługuje obecnie metody GET i POST. Nie dodawaj logiki biznesowej do routera.
+Router obsługuje metody GET, POST, PATCH i DELETE (`get()`, `post()`, `patch()`, `delete()`); PATCH i DELETE służą do API wywoływanego z JavaScriptu. Nie dodawaj logiki biznesowej do routera.
 
 ### Controller
 
@@ -124,7 +128,7 @@ Kontrolery znajdują się w `src/controllers/`, używają przestrzeni nazw `App\
 - przygotowanie danych dla widoku,
 - wybranie szablonu przez `$this->render()`.
 
-Akcje chronione zaczynają się od jednego z pomocników `AppController`: `requireLogin()` (401 bez sesji), `requireUser()` (użytkownik z bazy) albo `requirePermission(Permission::...)` (403 przy niewłaściwej roli). Akcje POST wywołują potem `requireValidCsrf()`, a formularz musi zawierać `partials/csrf-field.html.php`. Rola z sesji (`can()`) służy tylko do pokazywania lub ukrywania przycisków; nigdy nie zastępuje sprawdzenia po stronie serwera. Po udanym POST użyj `redirect()` (kończy skrypt, przyjmuje tylko ścieżki wewnętrzne), a komunikat dla następnej strony zapisz przez `flash('flash.klucz')`. Trasy ze stałym fragmentem (`/wines/new`) rejestruj przed trasami z parametrem (`/wines/{id}`).
+Akcje chronione zaczynają się od jednego z pomocników `AppController`: `requireLogin()` (401 bez sesji), `requireUser()` (użytkownik z bazy) albo `requirePermission(Permission::...)` (403 przy niewłaściwej roli). Akcje POST wywołują potem `requireValidCsrf()`, a formularz musi zawierać `partials/csrf-field.html.php`; akcje API (PATCH, DELETE) wywołują `requireValidCsrfHeader()` (token w nagłówku `X-CSRF-Token`), a odpowiedź wysyłają przez `json()` albo `noContent()`. Rola z sesji (`can()`) służy tylko do pokazywania lub ukrywania przycisków; nigdy nie zastępuje sprawdzenia po stronie serwera. Po udanym POST użyj `redirect()` (kończy skrypt, przyjmuje tylko ścieżki wewnętrzne), a komunikat dla następnej strony zapisz przez `flash('flash.klucz')`. Trasy ze stałym fragmentem (`/wines/new`) rejestruj przed trasami z parametrem (`/wines/{id}`).
 
 Kontroler powinien być cienki. Nie umieszczaj w nim rozbudowanych zapytań do bazy, HTML ani stylów. Dane „na sztywno” w `DefaultController` są tymczasowe i mają trafić do modelu/repozytorium, gdy pojawi się baza.
 
@@ -203,6 +207,8 @@ docker compose up --build -d
 ```
 
 Aplikacja jest dostępna pod `http://localhost:8080` (port ustawiony w `docker-compose.yaml`).
+
+Na istniejącą bazę (wolumen już istnieje) migrację z Lab 11 dopisuje się poleceniem `docker compose exec db psql -U app -d app -v ON_ERROR_STOP=1 -f /docker-entrypoint-initdb.d/04-user-administration.sql`.
 
 Przydatne polecenia:
 

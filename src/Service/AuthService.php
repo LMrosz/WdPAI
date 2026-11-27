@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Service;
 
+use App\Exception\AccountBlockedException;
 use App\Exception\EmailAlreadyUsedException;
 use App\Model\Email;
 use App\Model\Role;
@@ -42,6 +43,9 @@ final class AuthService
     /**
      * Zwraca użytkownika, gdy adres i hasło są poprawne, w przeciwnym razie null.
      * Nie ujawnia, czy konto istnieje: zły adres i złe hasło dają ten sam wynik.
+     *
+     * @throws AccountBlockedException gdy dane są poprawne, ale konto zablokował administrator;
+     *         wyjątek pada dopiero po sprawdzeniu hasła, więc nie zdradza obcym, że takie konto istnieje
      */
     public function authenticate(string $email, string $password): ?User
     {
@@ -57,7 +61,15 @@ final class AuthService
             return null;
         }
 
-        return $user->verifyPassword($password) ? $user : null;
+        if (!$user->verifyPassword($password)) {
+            return null;
+        }
+
+        if ($user->isBlocked) {
+            throw new AccountBlockedException('Account is blocked');
+        }
+
+        return $user;
     }
 
     private static function dummyHash(): string

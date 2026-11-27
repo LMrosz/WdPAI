@@ -4,12 +4,15 @@ declare(strict_types=1);
 
 use App\Controller\AboutController;
 use App\Controller\AccountController;
+use App\Controller\AdminController;
 use App\Controller\DefaultController;
 use App\Controller\ErrorController;
 use App\Controller\SecurityController;
 use App\Controller\TastingController;
+use App\Controller\UserApiController;
 use App\Controller\WineController;
 use App\Controller\WineManagementController;
+use App\Exception\ApiException;
 use App\Exception\HttpException;
 use App\Routing;
 use App\Service\Session;
@@ -38,7 +41,15 @@ $routing->get('/register', SecurityController::class, 'register');
 $routing->post('/register', SecurityController::class, 'createAccount');
 $routing->post('/logout', SecurityController::class, 'logout');
 $routing->get('/account', AccountController::class, 'show');
+$routing->get('/admin/users', AdminController::class, 'index');
+$routing->get('/api/users', UserApiController::class, 'index');
+$routing->delete('/api/users/{id}', UserApiController::class, 'delete');
+$routing->patch('/api/users/{id}/block', UserApiController::class, 'block');
+$routing->patch('/api/users/{id}/role', UserApiController::class, 'role');
 $routing->get('/', DefaultController::class, 'index');
+
+// Żądania do /api/ dostają błędy w formacie JSON, reszta aplikacji strony błędów HTML.
+$isApiRequest = str_starts_with(parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH) ?: '/', '/api/');
 
 try {
     $routing->dispatch(
@@ -46,9 +57,20 @@ try {
         $_SERVER['REQUEST_URI'],
     );
 } catch (HttpException $exception) {
-    (new ErrorController())->show($exception->statusCode());
+    $errors = new ErrorController();
+
+    if ($isApiRequest) {
+        $errors->showJson($exception->statusCode(), $exception instanceof ApiException ? $exception->reason() : null);
+    } else {
+        $errors->show($exception->statusCode());
+    }
 } catch (\Throwable $exception) {
     // Szczegóły trafiają do logu serwera, użytkownik widzi tylko ogólną stronę błędu (500).
     error_log((string) $exception);
-    (new ErrorController())->show(500);
+
+    if ($isApiRequest) {
+        (new ErrorController())->showJson(500);
+    } else {
+        (new ErrorController())->show(500);
+    }
 }

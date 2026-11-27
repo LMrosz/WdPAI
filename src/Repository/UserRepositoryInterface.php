@@ -23,6 +23,19 @@ interface UserRepositoryInterface
      */
     public function create(Email $email, string $passwordHash, Role $role, ?string $displayName = null): User;
 
+    /**
+     * Wszystkie konta od najstarszego; jedno zapytanie z JOIN-em roli (bez N+1).
+     *
+     * @return list<User>
+     */
+    public function findAll(): array;
+
+    /** Blokuje albo odblokowuje konto; false, gdy takiego konta nie było. */
+    public function setBlocked(int $id, bool $blocked): bool;
+
+    /** Zmienia rolę konta; false, gdy takiego konta nie było. */
+    public function changeRole(int $id, Role $role): bool;
+
     /** Usuwa konto (razem z jego rezerwacjami, ON DELETE CASCADE); false, gdy takiego konta nie było. */
     public function delete(int $id): bool;
 }

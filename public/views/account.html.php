@@ -7,6 +7,7 @@
  * @var string $since data założenia konta
  * @var list<string> $permissions opisy uprawnień roli
  * @var bool $canManageWines
+ * @var bool $canManageUsers
  */
 ?>
 <main class="page catalog-page">
@@ -48,6 +49,9 @@
                 </ul>
                 <?php if ($canManageWines): ?>
                     <p><a class="button" href="/wines/new"><?= $t('account.add_wine') ?></a></p>
+                <?php endif; ?>
+                <?php if ($canManageUsers): ?>
+                    <p><a class="button" href="/admin/users"><?= $t('account.admin_panel') ?></a></p>
                 <?php endif; ?>
             </section>
         </div>

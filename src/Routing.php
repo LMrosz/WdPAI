@@ -21,6 +21,16 @@ final class Routing
         $this->add('POST', $path, $controller, $action);
     }
 
+    public function patch(string $path, string $controller, string $action): void
+    {
+        $this->add('PATCH', $path, $controller, $action);
+    }
+
+    public function delete(string $path, string $controller, string $action): void
+    {
+        $this->add('DELETE', $path, $controller, $action);
+    }
+
     private function add(
         string $method,
         string $path,
