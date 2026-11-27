@@ -4,7 +4,10 @@ declare(strict_types=1);
 
 namespace App\Model;
 
-/** Termin degustacji z liczbą miejsc; zajęte miejsca to potwierdzone rezerwacje. */
+/**
+ * Termin degustacji z liczbą miejsc; zajęte miejsca to potwierdzone rezerwacje (widok
+ * tasting_session_availability). $maxSeats to największa liczba osób w jednej rezerwacji.
+ */
 final readonly class TastingSession
 {
     private const TIMEZONE = 'Europe/Warsaw';
@@ -19,6 +22,9 @@ final readonly class TastingSession
         public \DateTimeImmutable $startsAt,
         public int $seatsTotal,
         public int $seatsBooked,
+        public int $tastingId = 0,
+        public string $tastingName = '',
+        public int $maxSeats = 12,
     ) {
     }
 
