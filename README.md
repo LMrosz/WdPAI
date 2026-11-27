@@ -14,13 +14,14 @@ VinoKeep to aplikacja webowa dla winnic: prezentuje ofertę (wina, degustacje, h
 | Rejestracja (`/register`) | Walidacja e-maila i hasła (długość, litera, cyfra, znak specjalny, powtórzenie), zapis konta gościa ze skrótem hasła (`password_hash`), obsługa zajętego adresu | gotowe |
 | Wylogowanie (`POST /logout`) | Czyści sesję, wygasza ciasteczko i niszczy sesję; wymaga tokenu CSRF | gotowe |
 | Konto (`/account`) | Dane zalogowanego użytkownika, jego rola i uprawnienia; bez logowania 401 | gotowe |
-| Zarządzanie winami (`/wines/new`, `/wines/{id}/edit`) | Formularze dodawania i edycji z walidacją, usuwanie z potwierdzeniem; piwniczy dodaje i edytuje, właściciel dodatkowo usuwa | gotowe |
+| Zarządzanie winami (`/wines/new`, `/wines/{id}/edit`) | Formularze dodawania i edycji z walidacją, usuwanie z potwierdzeniem; piwniczy dodaje i edytuje, administrator i właściciel dodatkowo usuwają | gotowe |
+| Panel użytkowników (`/admin/users`) | Lista kont pobierana przez Fetch API (`GET /api/users`), blokowanie i odblokowywanie (`PATCH`), usuwanie (`DELETE`) oraz, dla właściciela, nadawanie roli administratora; stany wczytywania, pustej listy i błędów | gotowe (Lab 11) |
 | Teksty serwisu | Wszystkie napisy i nazwa marki w `config/content.php` | gotowe |
 | Motyw jasny/ciemny | Przełącznik w nagłówku: tryb systemowy, jasny lub ciemny, wybór zapamiętany w przeglądarce | gotowe |
 | Dostępność (WCAG) | Semantyczne znaczniki, widoczny fokus, kontrast sprawdzony w obu motywach narzędziem axe | częściowo, pełny audyt planowany w przyszłości |
 | Baza PostgreSQL | Schemat z 8 tabelami (użytkownicy, role, wina, degustacje, rezerwacje), indeksy, dane demonstracyjne i warstwa danych przez PDO (encje, repozytoria, DTO, Value Object) | gotowe, aplikacja czyta z bazy wina, degustacje i konta, a zapisuje konta oraz wina |
-| Role użytkowników | `GUEST`, `CELLAR_MASTER`, `WINERY_OWNER` z uprawnieniami sprawdzanymi po stronie serwera (401 bez logowania, 403 przy niewłaściwej roli) | gotowe |
-| Rezerwacje, upload, panel admina | Rezerwacje degustacji, zdjęcia, edycja treści | planowane w przyszłości |
+| Role użytkowników | `GUEST`, `CELLAR_MASTER`, `ADMIN` (może być ich wielu) i `WINERY_OWNER` (jeden, wymuszone indeksem w bazie) z uprawnieniami sprawdzanymi po stronie serwera (401 bez logowania, 403 przy niewłaściwej roli) | gotowe |
+| Rezerwacje, upload, edycja treści | Rezerwacje degustacji, zdjęcia, edycja treści w panelu | planowane w przyszłości |
 
 ## Tech stack
 
@@ -29,7 +30,7 @@ VinoKeep to aplikacja webowa dla winnic: prezentuje ofertę (wina, degustacje, h
 | Backend | PHP 8.3 (własny MVC, autoloading PSR-4 przez Composer) |
 | Serwer HTTP | Nginx + PHP-FPM |
 | Baza danych | PostgreSQL (kontener `db`), dostęp z PHP przez PDO i sterownik `pdo_pgsql` |
-| Frontend | HTML (widoki PHP), jeden plik CSS (zmienne CSS, Flexbox, Grid, mobile-first), JavaScript bez bibliotek (przełącznik motywu) |
+| Frontend | HTML (widoki PHP), jeden plik CSS (zmienne CSS, Flexbox, Grid, mobile-first), JavaScript bez bibliotek (przełącznik motywu, walidacja formularzy, Fetch API w panelu użytkowników) |
 | Konteneryzacja | Docker Compose |
 | Narzędzia | Mailpit (podgląd maili), pgAdmin (zarządzanie bazą) |
 
@@ -50,7 +51,11 @@ docker compose up --build -d
 
 Porty i dane dostępowe są w pliku `.env`, który powstaje z wzoru `.env.example` (sam `.env` jest w `.gitignore`): `POSTGRES_DB`, `POSTGRES_USER`, `POSTGRES_PASSWORD`, `POSTGRES_PORT`, `MAILPIT_PORT`, `PGADMIN_PORT`, `PGADMIN_DEFAULT_EMAIL` i `PGADMIN_DEFAULT_PASSWORD`. Bez pliku `.env` compose używa tych samych wartości domyślnych. Zatrzymanie: `docker compose down`.
 
-Przy pierwszym starcie z pustym wolumenem bazy tabele i dane demonstracyjne tworzą się same. Jeśli wolumen `pg-data` już istnieje, trzeba załadować schemat ręcznie (patrz „Baza danych”).
+Przy pierwszym starcie z pustym wolumenem bazy tabele i dane demonstracyjne tworzą się same. Jeśli wolumen `pg-data` już istnieje, trzeba załadować schemat ręcznie (patrz „Baza danych”). Po aktualizacji z wcześniejszego laboratorium wystarczy dopisać do działającej bazy migrację z Lab 11:
+
+```bash
+docker compose exec db psql -U app -d app -v ON_ERROR_STOP=1 -f /docker-entrypoint-initdb.d/04-user-administration.sql
+```
 
 ## Baza danych (PostgreSQL)
 
@@ -79,6 +84,7 @@ erDiagram
         varchar password_hash
         varchar display_name
         smallint role_id FK
+        boolean is_blocked
         timestamptz created_at
         timestamptz updated_at
     }
@@ -140,8 +146,8 @@ erDiagram
 
 | Tabela | Do czego służy | Najważniejsze reguły |
 |---|---|---|
-| `roles` | Role użytkowników (`GUEST`, `CELLAR_MASTER`, `WINERY_OWNER`) | unikalny `code` |
-| `users` | Konta; hasło tylko jako skrót z `password_hash()` | unikalny e-mail zapisany małymi literami, rola wymagana |
+| `roles` | Role użytkowników (`GUEST`, `CELLAR_MASTER`, `ADMIN`, `WINERY_OWNER`) | unikalny `code` |
+| `users` | Konta; hasło tylko jako skrót z `password_hash()`, `is_blocked` zamyka logowanie | unikalny e-mail zapisany małymi literami, rola wymagana, tylko jedno konto z rolą `WINERY_OWNER` (częściowy indeks `users_single_owner_idx`) |
 | `wines` | Katalog win; cena to kwota w PLN, a napis „165 zł” składa aplikacja | `category` tylko `red`, `white`, `rose`, `sparkling`; cena od 0; moc alkoholu w zakresie 0–25; to samo wino i rocznik nie mogą się powtórzyć |
 | `wine_pairings` | Potrawy pasujące do wina (relacja 1:N) | kolejność w `sort_order`, usunięcie wina usuwa jego potrawy |
 | `tastings` | Rodzaje degustacji z oferty | unikalna nazwa, czas, liczba osób i cena dodatnie |
@@ -160,6 +166,7 @@ Indeksy poza kluczami głównymi i ograniczeniami `UNIQUE` (PostgreSQL nie tworz
 | `database/01-schema.sql` | tabele, klucze i ograniczenia |
 | `database/02-indexes.sql` | indeksy |
 | `database/03-seed.sql` | dane demonstracyjne: 3 role, 3 konta, 10 win z potrawami, 3 degustacje z terminami i 2 rezerwacje |
+| `database/04-user-administration.sql` | Lab 11: rola `ADMIN`, kolumna `users.is_blocked`, indeks jednego właściciela i konto demonstracyjne administratora; można go uruchomić ponownie bez szkody |
 
 Katalog `database/` jest zamontowany w kontenerze `db` jako `/docker-entrypoint-initdb.d`. PostgreSQL wykonuje te pliki **tylko raz, przy pierwszym starcie z pustym wolumenem** `pg-data`, w kolejności nazw. Jeśli wolumen już istnieje (baza była uruchomiona wcześniej), załaduj schemat ręcznie. Ścieżki wskazują plik wewnątrz kontenera, więc polecenia działają w każdej powłoce:
 
@@ -170,7 +177,7 @@ docker compose exec db psql -U app -d app -v ON_ERROR_STOP=1 \
   -f /docker-entrypoint-initdb.d/03-seed.sql
 ```
 
-Skrypty nie są powtarzalne (tworzą tabele). Aby zacząć od zera i skasować dane bazy: `docker compose down -v`, a potem `docker compose up -d`.
+Skrypty 01–03 nie są powtarzalne (tworzą tabele), a `04` jest. Aby zacząć od zera i skasować dane bazy: `docker compose down -v`, a potem `docker compose up -d`.
 
 ### Warstwa danych (Lab 8)
 
@@ -229,7 +236,7 @@ docker compose exec php php bin/demo-wines-crud.php cleanup   # usuwa wina demo
 
 ### Konta demonstracyjne
 
-Skrypt `03-seed.sql` tworzy trzy konta (`gosc@corvo-bianco.example`, `piwniczy@corvo-bianco.example`, `wlasciciel@corvo-bianco.example`) z hasłem `Winiarz-2026!`. To dane wyłącznie do lokalnego rozwoju. Można nimi zalogować się na `/login`: `gosc@` ma rolę `GUEST`, `piwniczy@` rolę `CELLAR_MASTER`, a `wlasciciel@` rolę `WINERY_OWNER`. Konta zakładane przez `/register` zawsze mają rolę `GUEST`; wyższe role nadaje się w bazie, np. `UPDATE users SET role_id = (SELECT id FROM roles WHERE code = 'CELLAR_MASTER') WHERE email = '...'`.
+Skrypty `03-seed.sql` i `04-user-administration.sql` tworzą cztery konta (`gosc@corvo-bianco.example`, `piwniczy@corvo-bianco.example`, `admin@corvo-bianco.example`, `wlasciciel@corvo-bianco.example`) z hasłem `Winiarz-2026!`. To dane wyłącznie do lokalnego rozwoju. Można nimi zalogować się na `/login`: `gosc@` ma rolę `GUEST`, `piwniczy@` rolę `CELLAR_MASTER`, `admin@` rolę `ADMIN`, a `wlasciciel@` rolę `WINERY_OWNER`. Konta zakładane przez `/register` zawsze mają rolę `GUEST`; wyższe role nadaje się w bazie, np. `UPDATE users SET role_id = (SELECT id FROM roles WHERE code = 'CELLAR_MASTER') WHERE email = '...'`, a rolę administratora może też nadać właściciel w panelu `/admin/users`.
 
 ## Debugowanie (Xdebug)
 
@@ -278,7 +285,7 @@ my-app/
 ├── config/
 │   ├── content.php          # wszystkie teksty i dane marki (domyślnie Corvo Bianco)
 │   └── database.php         # dane połączenia z bazą (ze zmiennych środowiskowych)
-├── database/                # skrypty SQL: schemat, indeksy, dane demonstracyjne
+├── database/                # skrypty SQL: schemat, indeksy, dane demonstracyjne, administracja użytkownikami (04)
 ├── docker/                  # Dockerfile'e i konfiguracja nginx, php, db
 ├── public/
 │   ├── index.php            # front controller, definicje tras
@@ -286,16 +293,18 @@ my-app/
 │   ├── js/theme.js          # przełącznik motywu jasny/ciemny/systemowy
 │   ├── js/app.js            # punkt wejścia JavaScriptu (moduł ES), uruchamia moduły z js/modules/
 │   ├── js/modules/          # walidacja formularzy, pokaż hasło, licznik znaków, wyszukiwarka win
+│   ├── js/users.js          # panel użytkowników (Fetch API), ładowany tylko na /admin/users
 │   └── views/               # widoki *.html.php (sam element <main>)
 │       ├── layout.html.php  # wspólny szkielet strony, składa head, nagłówek, treść i stopkę
 │       ├── error.html.php   # wspólny widok błędów 400, 401, 403, 404 i 500
 │       ├── account.html.php # konto zalogowanego użytkownika
+│       ├── admin-users.html.php # panel użytkowników (szkielet, listę rysuje js/users.js)
 │       ├── wine-form.html.php # formularz dodawania i edycji wina
 │       └── partials/        # wspólne head, header, footer, pola formularzy, pole tokenu CSRF
 ├── src/
 │   ├── Database.php         # tworzy połączenie PDO z PostgreSQL
 │   ├── Routing.php          # router
-│   ├── Exception/           # HttpException i wyjątki 400, 401, 403, 404 oraz wyjątki domenowe (zajęty e-mail, duplikat wina)
+│   ├── Exception/           # HttpException i wyjątki 400, 401, 403, 404, ApiException (błędy JSON) oraz wyjątki domenowe (zajęty e-mail, duplikat wina, zablokowane konto)
 │   ├── Dto/WineData.php     # DTO z danymi wina do zapisu
 │   ├── Model/               # encje (Wine, User, Tasting, TastingSession), Value Object Email, enum Role i Permission, TastedWine
 │   ├── Repository/          # interfejsy i implementacje dla PostgreSQL (wina, użytkownicy, degustacje) oraz ContentWineRepository (plik)
@@ -304,8 +313,9 @@ my-app/
 │   │   ├── PriceFormatter.php # formatowanie kwot z bazy („165 zł”)
 │   │   ├── Session.php      # konfiguracja i uruchomienie sesji, logowanie i niszczenie sesji
 │   │   ├── SiteContent.php  # odczyt tekstów z config/content.php
+│   │   ├── UserAdminService.php # reguły panelu: kto kogo może blokować, usuwać i awansować
 │   │   └── Validator.php    # walidacja danych z formularzy po stronie serwera
-│   └── controllers/         # kontrolery (AppController jako baza z pomocnikami sesji i CSRF, SecurityController, AccountController, WineManagementController, ErrorController)
+│   └── controllers/         # kontrolery (AppController jako baza z pomocnikami sesji i CSRF, SecurityController, AccountController, AdminController, UserApiController, WineManagementController, ErrorController)
 ├── docker-compose.yaml
 ├── composer.json
 └── AGENTS.MD                # zasady pracy z asystentem AI
@@ -342,6 +352,11 @@ Wygląd obu motywów opisują zmienne CSS w `public/css/style.css`: motyw jasny 
 | POST | `/register` | Rejestracja: błędy i zajęty adres wracają do formularza (422), sukces przekierowuje na `/login?registered=1` |
 | POST | `/logout` | Wylogowanie (token CSRF), przekierowanie na `/login?logged_out=1` |
 | GET | `/account` | Konto zalogowanego użytkownika (bez logowania 401) |
+| GET | `/admin/users` | Panel użytkowników (`ADMIN`, `WINERY_OWNER`); bez logowania 401, z inną rolą 403 |
+| GET | `/api/users` | JSON z listą kont i flagami `canBlock`, `canDelete`, `canChangeRole` |
+| DELETE | `/api/users/{id}` | Usunięcie konta (204); token w nagłówku `X-CSRF-Token` |
+| PATCH | `/api/users/{id}/block` | Blokada albo odblokowanie konta, ciało `{"blocked": true}` |
+| PATCH | `/api/users/{id}/role` | Zmiana roli (`GUEST`, `CELLAR_MASTER`, `ADMIN`), ciało `{"role": "ADMIN"}`; tylko `WINERY_OWNER` |
 
 ## Parametry w adresie
 
@@ -351,7 +366,7 @@ Kontroler korzysta z `WineRepositoryInterface` (a `TastingController` z `Tasting
 
 ## Obsługa błędów
 
-Router rzuca `NotFoundException`, gdy żadna trasa nie pasuje, a kontroler może rzucić `BadRequestException` (np. zły format identyfikatora), `UnauthorizedException` (akcja wymaga logowania) albo `ForbiddenException` (rola bez uprawnienia albo zły token CSRF). Front controller łapie `HttpException` i pokazuje stronę błędu z odpowiednim kodem (400, 401, 403 albo 404) przez `ErrorController`; strona 401 prowadzi do logowania. Każdy inny nieoczekiwany błąd kończy się ogólną stroną 500, a szczegóły trafiają tylko do logu serwera, bez stack trace dla użytkownika. Teksty błędów są w `config/content.php` (`errors.*`).
+Router rzuca `NotFoundException`, gdy żadna trasa nie pasuje, a kontroler może rzucić `BadRequestException` (np. zły format identyfikatora), `UnauthorizedException` (akcja wymaga logowania) albo `ForbiddenException` (rola bez uprawnienia albo zły token CSRF). Front controller łapie `HttpException` i pokazuje stronę błędu z odpowiednim kodem (400, 401, 403 albo 404) przez `ErrorController`; strona 401 prowadzi do logowania. Dla adresów zaczynających się od `/api/` te same wyjątki kończą się odpowiedzią JSON `{"error": {"status", "reason", "message"}}` (`ErrorController::showJson()`), bo skrypt nie wyświetli strony HTML. Każdy inny nieoczekiwany błąd kończy się ogólną stroną 500, a szczegóły trafiają tylko do logu serwera, bez stack trace dla użytkownika. Teksty błędów są w `config/content.php` (`errors.*` dla stron, `api_errors.*` dla JSON).
 
 ## Walidacja formularzy
 
@@ -387,11 +402,21 @@ Jak działa walidacja w przeglądarce:
 
 - pole jest sprawdzane po opuszczeniu zmienionego pola (`change`); gdy ma już błąd, komunikat poprawia się przy każdym znaku (`input`), a potwierdzenie hasła jest sprawdzane ponownie po zmianie hasła,
 - przy wysyłaniu (`submit`) sprawdzane są wszystkie pola; przy błędach formularz nie jest wysyłany, nad nim pojawia się podsumowanie z linkami do pól, a fokus trafia na pierwsze błędne pole,
-- komunikaty pochodzą z `config/content.php` (sekcje `validation`, `forms`, `js`): layout wypisuje je jako JSON w `<script type="application/json" id="js-messages">`, więc kod JavaScript nie zawiera żadnych napisów i podąży za tłumaczeniem,
+- komunikaty pochodzą z `config/content.php` (sekcje `validation`, `forms`, `js`, a w panelu użytkowników także `admin` i `roles`): layout wypisuje je jako JSON w `<script type="application/json" id="js-messages">`, więc kod JavaScript nie zawiera żadnych napisów i podąży za tłumaczeniem,
 - tekst błędów trafia do strony przez `textContent`, nigdy przez `innerHTML`,
 - to tylko wygoda użytkownika: serwer waliduje te same dane jeszcze raz, bo żądanie można wysłać z pominięciem JavaScriptu.
 
 Wyszukiwarka w `/wines` jest ukryta (`hidden`), dopóki skrypt jej nie pokaże, a liczba wyników trafia do regionu `role="status"`; szuka w nazwie, rodzaju, szczepie i opisie karty, w obrębie kategorii wybranej linkiem filtra.
+
+## Fetch API i panel użytkowników (Lab 11)
+
+Panel `/admin/users` (`AdminController::index`) zwraca tylko szkielet strony. `public/js/users.js` (moduł ładowany tylko na tej stronie, wykonuje się po zbudowaniu dokumentu jak `defer`) pobiera listę przez `fetch('/api/users')`, rysuje wiersze i wysyła zmiany bez przeładowania strony.
+
+- **API** (`UserApiController`): `GET /api/users`, `DELETE /api/users/{id}`, `PATCH /api/users/{id}/block`, `PATCH /api/users/{id}/role`. Router dostał metody `patch()` i `delete()`, a `AppController` pomocniki `json()`, `noContent()` (204), `jsonBody()` i `requireValidCsrfHeader()`.
+- **Kody odpowiedzi:** 200 z JSON, 204 po usunięciu, 400 (zły identyfikator lub treść), 401 (brak sesji albo konto zablokowane), 403 (rola, token CSRF, konto właściciela, administrator dla nie-właściciela), 404 (brak konta), 422 (własne konto, nieprawidłowe dane).
+- **Stany interfejsu:** wczytywanie, lista, pusta lista, błąd sieci (z limitem czasu 15 s) i błąd odpowiedzi API, oba z przyciskiem „Spróbuj ponownie”. Kontrolki wiersza są wyłączone na czas żądania, a po akcji fokus wraca na przycisk. Usuwanie wymaga potwierdzenia w wierszu (przycisk zamienia się w pytanie), wynik akcji czyta region `role="status"`.
+- **Bezpieczeństwo:** każda akcja zaczyna się od `requirePermission()` (401 i 403), potem sprawdzany jest token z nagłówka `X-CSRF-Token`. Flagi `canBlock`, `canDelete` i `canChangeRole` w odpowiedzi tylko ukrywają przyciski, a reguły i tak sprawdza `UserAdminService` przy każdej akcji. Odpowiedzi mają `Cache-Control: no-store` i nie zawierają skrótów haseł.
+- **Teksty:** wszystkie napisy panelu są w `config/content.php` (`admin`, `roles`, `api_errors`); sekcje `admin` i `roles` layout przekazuje do JS w bloku `#js-messages`.
 
 ## Uwierzytelnianie i sesje (Lab 9)
 
@@ -415,9 +440,14 @@ Wyszukiwarka w `/wines` jest ukryta (`hidden`), dopóki skrypt jej nie pokaże, 
 |------|-------------|
 | `GUEST` | przeglądanie win i degustacji |
 | `CELLAR_MASTER` | dodatkowo `ManageWines`: dodawanie i edycja win |
-| `WINERY_OWNER` | dodatkowo `DeleteWines`: usuwanie win |
+| `ADMIN` | dodatkowo `DeleteWines` i `ManageUsers`: usuwanie win oraz panel kont (blokowanie i usuwanie użytkowników) |
+| `WINERY_OWNER` | jak `ADMIN`, a dodatkowo `ManageAdmins`: nadaje i odbiera rolę administratora, blokuje i usuwa administratorów |
 
 Akcje chronione zaczynają się od `requireLogin()`, `requireUser()` albo `requirePermission()` z `AppController`: brak sesji daje **401**, a rola bez uprawnienia **403**. `requirePermission()` czyta użytkownika z bazy, więc zmiana roli albo usunięcie konta działa od razu, bez czekania na wygaśnięcie sesji. Widoki ukrywają przyciski (Dodaj, Edytuj, Usuń) na podstawie roli z sesji, ale to tylko wygoda: o dostępie decyduje serwer, więc ręczne wpisanie adresu też kończy się 401 albo 403.
+
+**Administratorzy i właściciel.** Właściciel winnicy ma wszystkie uprawnienia administratora, ale jest tylko jeden: częściowy indeks UNIQUE w bazie nie pozwala nadać tej roli drugiej osobie, a API nie ma operacji, która by to robiła (roli `WINERY_OWNER` nie da się nadać ani odebrać). Administratorów może być wielu: właściciel deleguje tę rolę przyciskiem w panelu (`PATCH /api/users/{id}/role`). Reguły są w jednym miejscu, `UserAdminService`: nie można blokować, usuwać ani zmieniać roli własnego konta (422), konto właściciela jest nietykalne (403), kontami administratorów zarządza tylko właściciel (403), a rolę nadaje tylko właściciel.
+
+**Blokada konta.** `users.is_blocked` zamyka logowanie: po poprawnym haśle użytkownik dostaje 403 z osobnym komunikatem (przy złym haśle nadal ogólny, więc nie ujawnia, że konto istnieje). Blokada działa od razu także na aktywną sesję, bo `requireUser()` czyta konto z bazy i przy zablokowanym kończy sesję (401).
 
 **Lista kontrolna bezpieczeństwa:**
 
@@ -431,6 +461,8 @@ Akcje chronione zaczynają się od `requireLogin()`, `requireUser()` albo `requi
 | CSRF | token w każdym POST, `hash_equals`, wylogowanie przez POST |
 | Enumeracja kont | jeden komunikat i stały czas przy logowaniu |
 | Podniesienie uprawnień | rola nigdy z formularza, uprawnienia sprawdzane po stronie serwera (401/403) |
+| CSRF w API (Fetch) | token sesji w nagłówku `X-CSRF-Token` dla `PATCH` i `DELETE` (`requireValidCsrfHeader()`), cookie `SameSite=Lax` |
+| XSS w panelu | dane z API trafiają do DOM przez `textContent`, nigdy `innerHTML`; JSON z `JSON_HEX_TAG` |
 | Open redirect | `redirect()` przyjmuje tylko ścieżki wewnętrzne (zaczynające się od jednego `/`) |
 | Wycieki informacji | błędy techniczne tylko w logu, użytkownik widzi ogólną stronę 500 |
 
