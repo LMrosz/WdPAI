@@ -27,6 +27,7 @@ return [
         'about' => 'O winnicy',
         'login' => 'Zaloguj się',
         'account' => 'Moje konto',
+        'admin' => 'Użytkownicy',
         'logout' => 'Wyloguj się',
     ],
 
@@ -373,6 +374,7 @@ return [
         'registered' => 'Konto zostało założone. Zaloguj się, aby z niego korzystać.',
         'logged_out' => 'Wylogowano. Do zobaczenia w winnicy!',
         'invalid_credentials' => 'Nieprawidłowy e-mail lub hasło.',
+        'account_blocked' => 'To konto zostało zablokowane przez administratora. Skontaktuj się z winnicą.',
         'no_account' => 'Nie masz konta?',
         'register_link' => 'Zarejestruj się',
         'back' => 'Wróć na stronę główną',
@@ -405,11 +407,13 @@ return [
         'since' => 'Konto od',
         'permissions_title' => 'Co możesz robić',
         'add_wine' => 'Dodaj wino',
+        'admin_panel' => 'Zarządzaj użytkownikami',
     ],
 
     'roles' => [
         'GUEST' => 'Gość',
         'CELLAR_MASTER' => 'Piwniczy',
+        'ADMIN' => 'Administrator',
         'WINERY_OWNER' => 'Właściciel winnicy',
     ],
 
@@ -417,6 +421,58 @@ return [
         'base' => 'Przeglądanie win i degustacji',
         'manage_wines' => 'Dodawanie i edycja win',
         'delete_wines' => 'Usuwanie win z katalogu',
+        'manage_users' => 'Blokowanie i usuwanie kont użytkowników',
+        'manage_admins' => 'Nadawanie i odbieranie roli administratora oraz zarządzanie administratorami',
+    ],
+
+    // Panel /admin/users. Wiersze listy buduje public/js/users.js, więc cała sekcja trafia do
+    // przeglądarki w bloku #js-messages (layout) i nie ma w kodzie JavaScriptu żadnych napisów.
+    'admin' => [
+        'page_title' => 'Użytkownicy — {site.name}',
+        'title' => 'Użytkownicy',
+        'intro' => 'Zablokuj konto, żeby użytkownik nie mógł się zalogować, albo usuń je na stałe. Właściciel winnicy może dodatkowo nadawać rolę administratora.',
+        'list_label' => 'Lista kont',
+        'loading' => 'Wczytywanie użytkowników…',
+        'no_javascript' => 'Panel użytkowników wymaga włączonego JavaScriptu.',
+        'empty' => 'Nie ma jeszcze żadnych kont.',
+        'summary' => 'Liczba kont: {count}.',
+        'error_load' => 'Nie udało się wczytać listy użytkowników.',
+        'error_network' => 'Brak połączenia z serwerem. Sprawdź internet i spróbuj ponownie.',
+        'error_unknown' => 'Coś poszło nie tak. Spróbuj ponownie za chwilę.',
+        'retry' => 'Spróbuj ponownie',
+        'since' => 'Konto od {date}',
+        'you' => 'To Ty',
+        'blocked' => 'Zablokowane',
+        'role_label' => 'Rola konta {email}',
+        'block' => 'Zablokuj',
+        'unblock' => 'Odblokuj',
+        'delete' => 'Usuń',
+        'block_label' => 'Zablokuj konto {email}',
+        'unblock_label' => 'Odblokuj konto {email}',
+        'delete_label' => 'Usuń konto {email}',
+        'delete_question' => 'Usunąć konto {email} na stałe? Razem z nim znikną jego rezerwacje.',
+        'delete_confirm' => 'Tak, usuń',
+        'delete_cancel' => 'Anuluj',
+        'done_blocked' => 'Konto {email} zostało zablokowane.',
+        'done_unblocked' => 'Konto {email} zostało odblokowane.',
+        'done_deleted' => 'Konto {email} zostało usunięte.',
+        'done_role' => 'Konto {email} ma teraz rolę: {role}.',
+    ],
+
+    // Komunikaty błędów API (JSON): klucz to "reason" z odpowiedzi {"error": {...}}.
+    'api_errors' => [
+        'bad_request' => 'Żądanie jest nieprawidłowe.',
+        'unauthorized' => 'Sesja wygasła albo konto jest zablokowane. Zaloguj się ponownie.',
+        'forbidden' => 'Twoja rola nie pozwala na tę czynność albo strona wygasła. Odśwież ją i spróbuj ponownie.',
+        'not_found' => 'Nie ma takiego adresu.',
+        'user_not_found' => 'Takie konto już nie istnieje. Odśwież listę.',
+        'invalid_body' => 'Nieprawidłowe dane w żądaniu.',
+        'self_action' => 'Nie możesz zrobić tego ze swoim własnym kontem.',
+        'owner_protected' => 'Konto właściciela winnicy jest chronione.',
+        'admin_protected' => 'Kontami administratorów zarządza tylko właściciel winnicy.',
+        'owner_only' => 'Role nadaje tylko właściciel winnicy.',
+        'role_not_assignable' => 'Tej roli nie można nadać.',
+        'server_error' => 'Wystąpił błąd po naszej stronie. Spróbuj ponownie za chwilę.',
     ],
 
     'forms' => [

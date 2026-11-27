@@ -9,11 +9,14 @@ enum Role: string
 {
     case Guest = 'GUEST';
     case CellarMaster = 'CELLAR_MASTER';
+    case Admin = 'ADMIN';
     case WineryOwner = 'WINERY_OWNER';
 
     /**
      * Uprawnienia roli. Gość ma tylko to, co mają wszyscy (przeglądanie win i degustacji),
-     * piwniczy zarządza katalogiem win, a właściciel dodatkowo je usuwa.
+     * piwniczy zarządza katalogiem win, a administrator dodatkowo usuwa wina i zarządza kontami.
+     * Właściciel winnicy (jedna osoba) ma wszystko, co administrator, a do tego zarządza samymi
+     * administratorami: nadaje im rolę, odbiera ją, blokuje i usuwa ich konta.
      *
      * @return list<Permission>
      */
@@ -22,7 +25,13 @@ enum Role: string
         return match ($this) {
             self::Guest => [],
             self::CellarMaster => [Permission::ManageWines],
-            self::WineryOwner => [Permission::ManageWines, Permission::DeleteWines],
+            self::Admin => [Permission::ManageWines, Permission::DeleteWines, Permission::ManageUsers],
+            self::WineryOwner => [
+                Permission::ManageWines,
+                Permission::DeleteWines,
+                Permission::ManageUsers,
+                Permission::ManageAdmins,
+            ],
         };
     }
 
