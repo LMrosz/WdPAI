@@ -46,6 +46,7 @@ abstract class AppController
             'e' => static fn (mixed $value): string => self::escape($value),
             'csrf' => fn (): string => $this->csrfToken(),
             'authUser' => Session::user(),
+            'canManageUsers' => $this->can(Permission::ManageUsers),
         ];
 
         extract($variables, EXTR_SKIP);
@@ -188,6 +189,13 @@ abstract class AppController
             throw new UnauthorizedException('Account no longer exists');
         }
 
+        // blokada działa od razu: zablokowany użytkownik traci sesję przy następnym żądaniu
+        if ($user->isBlocked) {
+            Session::destroy();
+
+            throw new UnauthorizedException('Account is blocked');
+        }
+
         return $user;
     }
 
@@ -226,6 +234,67 @@ abstract class AppController
         if (!$this->isCsrfTokenValid($this->postString('csrf_token'))) {
             throw new ForbiddenException('Invalid CSRF token');
         }
+    }
+
+    /**
+     * Zabezpieczenie CSRF dla żądań z Fetch API (PATCH, DELETE, POST z JSON): token sesji musi
+     * przyjść w nagłówku X-CSRF-Token. Przeglądarka dołącza go z JavaScriptu, a strona z innej
+     * domeny nie zna tokenu i nie może dodać własnego nagłówka bez zgody serwera (CORS).
+     */
+    protected function requireValidCsrfHeader(): void
+    {
+        $token = $_SERVER['HTTP_X_CSRF_TOKEN'] ?? '';
+
+        if (!is_string($token) || !$this->isCsrfTokenValid($token)) {
+            throw new ForbiddenException('Invalid CSRF token');
+        }
+    }
+
+    /**
+     * Odpowiedź JSON z kodem HTTP. Odpowiedzi API zawierają dane konkretnego użytkownika, więc
+     * przeglądarka i pośrednicy nie mogą ich zapamiętywać (Cache-Control: no-store).
+     * Znaczniki HTML w tekstach są zapisane jako \u003C, więc JSON wstawiony w stronę nie otworzy tagu.
+     */
+    protected function json(array $data, int $status = 200): void
+    {
+        http_response_code($status);
+        header('Content-Type: application/json; charset=utf-8');
+        header('Cache-Control: no-store');
+
+        echo json_encode(
+            $data,
+            JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_HEX_TAG | JSON_HEX_AMP | JSON_THROW_ON_ERROR,
+        );
+    }
+
+    /** 204 No Content: akcja się udała i nie ma nic do odesłania (np. po DELETE). */
+    protected function noContent(): void
+    {
+        http_response_code(204);
+        header('Cache-Control: no-store');
+    }
+
+    /**
+     * Treść żądania JSON jako tablica asocjacyjna. Zły Content-Type, nieprawidłowy JSON albo
+     * wartość inna niż obiekt to błąd klienta (400); typy pól sprawdza dopiero akcja.
+     *
+     * @return array<string, mixed>
+     */
+    protected function jsonBody(): array
+    {
+        $type = strtolower((string) ($_SERVER['CONTENT_TYPE'] ?? ''));
+
+        if (!str_starts_with($type, 'application/json')) {
+            throw new BadRequestException('Content-Type must be application/json');
+        }
+
+        $body = json_decode((string) file_get_contents('php://input'), true);
+
+        if (!is_array($body) || array_is_list($body) && $body !== []) {
+            throw new BadRequestException('Request body must be a JSON object');
+        }
+
+        return $body;
     }
 
     protected function users(): UserRepositoryInterface
