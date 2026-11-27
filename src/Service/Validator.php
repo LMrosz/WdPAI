@@ -23,6 +23,56 @@ final class Validator
     {
     }
 
+    /**
+     * Tworzy walidator i od razu stosuje reguły zapisane tekstem (pole => lista reguł).
+     *
+     * @param array<string, mixed> $data
+     * @param array<string, list<string>> $fieldRules
+     */
+    public static function withRules(array $data, array $fieldRules): self
+    {
+        $validator = new self($data);
+
+        foreach ($fieldRules as $field => $rules) {
+            $validator->rules($field, $rules);
+        }
+
+        return $validator;
+    }
+
+    /**
+     * Stosuje reguły zapisane tekstem, np. ['required', 'max_length:64', 'integer_between:1900,2100'].
+     * Nazwa reguły jest taka sama jak klucz komunikatu "validation.<reguła>", a ten sam zapis widok
+     * wypisuje w atrybucie data-rules pola, więc przeglądarka (public/js) sprawdza dokładnie te
+     * same reguły co serwer i nie trzeba ich utrzymywać w dwóch miejscach.
+     *
+     * @param list<string> $rules
+     */
+    public function rules(string $field, array $rules): self
+    {
+        foreach ($rules as $rule) {
+            [$name, $arguments] = array_pad(explode(':', $rule, 2), 2, '');
+            $args = $arguments === '' ? [] : explode(',', $arguments);
+
+            match ($name) {
+                'required' => $this->required($field),
+                'email' => $this->email($field),
+                'min_length' => $this->minLength($field, (int) $args[0]),
+                'max_length' => $this->maxLength($field, (int) $args[0]),
+                'max_bytes' => $this->maxBytes($field, (int) $args[0]),
+                'matches' => $this->matches($field, $args[0]),
+                'letter_and_digit' => $this->letterAndDigit($field),
+                'special_character' => $this->specialCharacter($field),
+                'in_list' => $this->inList($field, $args),
+                'integer_between' => $this->integerBetween($field, (int) $args[0], (int) $args[1]),
+                'decimal_between' => $this->decimalBetween($field, (int) $args[0], (int) $args[1], (int) $args[2]),
+                default => throw new \InvalidArgumentException('Unknown validation rule: ' . $name),
+            };
+        }
+
+        return $this;
+    }
+
     public function required(string $field): self
     {
         return $this->check($field, 'required', static fn (string $value): bool => $value !== '');

@@ -18,6 +18,28 @@ final class SecurityController extends AppController
     /** bcrypt (PASSWORD_DEFAULT) ignoruje bajty hasła po 72. */
     private const PASSWORD_MAX_BYTES = 72;
 
+    /**
+     * Reguły pól logowania i rejestracji. Ten sam zapis sprawdza serwer (Validator::rules)
+     * i przeglądarka (widok wypisuje go w atrybucie data-rules, czyta go public/js).
+     */
+    private const LOGIN_RULES = [
+        'email' => ['required', 'email', 'max_length:' . self::EMAIL_MAX_LENGTH],
+        'password' => ['required', 'max_length:' . self::PASSWORD_MAX_LENGTH],
+    ];
+
+    private const REGISTER_RULES = [
+        'email' => ['required', 'email', 'max_length:' . self::EMAIL_MAX_LENGTH],
+        'password' => [
+            'required',
+            'min_length:' . self::PASSWORD_MIN_LENGTH,
+            'max_length:' . self::PASSWORD_MAX_LENGTH,
+            'max_bytes:' . self::PASSWORD_MAX_BYTES,
+            'letter_and_digit',
+            'special_character',
+        ],
+        'password_confirmation' => ['required', 'matches:password'],
+    ];
+
     private ?AuthService $auth = null;
 
     /** GET /login – formularz logowania (GUEST, CELLAR_MASTER, WINERY_OWNER). */
@@ -40,12 +62,7 @@ final class SecurityController extends AppController
         $email = trim($this->postString('email'));
         $password = $this->postString('password');
 
-        $validator = (new Validator(['email' => $email, 'password' => $password]))
-            ->required('email')
-            ->email('email')
-            ->maxLength('email', self::EMAIL_MAX_LENGTH)
-            ->required('password')
-            ->maxLength('password', self::PASSWORD_MAX_LENGTH);
+        $validator = Validator::withRules(['email' => $email, 'password' => $password], self::LOGIN_RULES);
 
         if ($validator->fails()) {
             http_response_code(422);
@@ -86,22 +103,11 @@ final class SecurityController extends AppController
 
         $email = trim($this->postString('email'));
 
-        $validator = (new Validator([
+        $validator = Validator::withRules([
             'email' => $email,
             'password' => $this->postString('password'),
             'password_confirmation' => $this->postString('password_confirmation'),
-        ]))
-            ->required('email')
-            ->email('email')
-            ->maxLength('email', self::EMAIL_MAX_LENGTH)
-            ->required('password')
-            ->minLength('password', self::PASSWORD_MIN_LENGTH)
-            ->maxLength('password', self::PASSWORD_MAX_LENGTH)
-            ->maxBytes('password', self::PASSWORD_MAX_BYTES)
-            ->letterAndDigit('password')
-            ->specialCharacter('password')
-            ->required('password_confirmation')
-            ->matches('password_confirmation', 'password');
+        ], self::REGISTER_RULES);
 
         if ($validator->fails()) {
             http_response_code(422);
@@ -162,6 +168,7 @@ final class SecurityController extends AppController
             'pageTitle' => $this->text('login.page_title'),
             'activePage' => 'login',
             'formAction' => '/login',
+            'rules' => self::LOGIN_RULES,
             'errors' => $errors,
             'old' => $old,
             'formError' => $formError,
@@ -180,6 +187,7 @@ final class SecurityController extends AppController
             'pageTitle' => $this->text('register.page_title'),
             'activePage' => 'login',
             'formAction' => '/register',
+            'rules' => self::REGISTER_RULES,
             'errors' => $errors,
             'old' => $old,
             'passwordMinLength' => self::PASSWORD_MIN_LENGTH,

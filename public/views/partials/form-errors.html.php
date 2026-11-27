@@ -7,7 +7,7 @@
  */
 ?>
 <?php if ($errors !== []): ?>
-    <div class="form-errors" role="alert">
+    <div class="form-errors" role="alert" data-form-summary>
         <p class="form-errors-title"><?= $t('forms.error_summary') ?></p>
         <ul>
             <?php foreach ($errors as $name => $message): ?>

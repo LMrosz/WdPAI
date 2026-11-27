@@ -6,36 +6,39 @@
  * @var string $formAction
  * @var string $cancelUrl
  * @var array<string, string> $categories kod kategorii => etykieta
+ * @var array<string, list<string>> $rules reguły walidacji pól (pole => lista reguł)
  * @var array<string, string> $errors nazwa pola => komunikat
  * @var array<string, string> $old wartości pól
  */
 // pomocnicze domknięcia: etykieta pola z treści i definicja pola dla partialu form-field
 $label = fn (string $name): string => $content->text('wines.form.' . $name);
-$text = static function (string $name, string $type = 'text', array $extra = []) use ($label, $old): array {
-    return ['name' => $name, 'type' => $type, 'label' => $label($name), 'value' => $old[$name] ?? ''] + $extra;
+// reguły (wymagane pola, limity długości) pochodzą z kontrolera, te same sprawdza serwer
+$text = static function (string $name, string $type = 'text', array $extra = []) use ($label, $old, $rules): array {
+    return ['name' => $name, 'type' => $type, 'label' => $label($name), 'value' => $old[$name] ?? '',
+        'rules' => $rules[$name] ?? []] + $extra;
 };
 
 $groups = [
     'basics' => [
-        $text('name', 'text', ['required' => true, 'maxlength' => 150]),
-        $text('category', 'select', ['required' => true, 'options' => $categories]),
-        $text('type', 'text', ['required' => true, 'maxlength' => 60, 'hint' => $label('type_hint')]),
-        $text('grape', 'text', ['maxlength' => 80]),
+        $text('name'),
+        $text('category', 'select', ['options' => $categories]),
+        $text('type', 'text', ['hint' => $label('type_hint')]),
+        $text('grape'),
         $text('vintage', 'text', ['inputmode' => 'numeric', 'maxlength' => 4, 'hint' => $label('vintage_hint')]),
         $text('abv', 'text', ['inputmode' => 'decimal', 'maxlength' => 5, 'hint' => $label('abv_hint')]),
-        $text('price', 'text', ['required' => true, 'inputmode' => 'decimal', 'maxlength' => 9, 'hint' => $label('price_hint')]),
-        $text('award', 'text', ['maxlength' => 100]),
+        $text('price', 'text', ['inputmode' => 'decimal', 'maxlength' => 9, 'hint' => $label('price_hint')]),
+        $text('award'),
     ],
     'description' => [
-        $text('notes', 'textarea', ['required' => true, 'rows' => 3, 'maxlength' => 2000]),
-        $text('story', 'textarea', ['rows' => 5, 'maxlength' => 2000]),
+        $text('notes', 'textarea', ['rows' => 3]),
+        $text('story', 'textarea', ['rows' => 5]),
     ],
     'tasting' => [
-        $text('aroma', 'textarea', ['rows' => 2, 'maxlength' => 2000]),
-        $text('palate', 'textarea', ['rows' => 2, 'maxlength' => 2000]),
-        $text('finish', 'textarea', ['rows' => 2, 'maxlength' => 2000]),
-        $text('serving', 'text', ['maxlength' => 150]),
-        $text('cellaring', 'text', ['maxlength' => 200]),
+        $text('aroma', 'textarea', ['rows' => 2]),
+        $text('palate', 'textarea', ['rows' => 2]),
+        $text('finish', 'textarea', ['rows' => 2]),
+        $text('serving'),
+        $text('cellaring'),
     ],
     'pairings' => [
         $text('pairings', 'textarea', ['rows' => 4, 'hint' => $label('pairings_hint')]),
@@ -55,7 +58,7 @@ foreach ($groups as $fields) {
         <h1 id="wine-form-title"><?= $t($editing ? 'wines.form.edit_title' : 'wines.form.create_title') ?></h1>
         <p class="auth-intro"><?= $t('wines.form.required_note') ?></p>
 
-        <form action="<?= $e($formAction) ?>" method="post" novalidate>
+        <form action="<?= $e($formAction) ?>" method="post" novalidate data-validate>
             <?php require __DIR__ . '/partials/csrf-field.html.php'; ?>
             <?php require __DIR__ . '/partials/form-errors.html.php'; ?>
 

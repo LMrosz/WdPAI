@@ -112,6 +112,11 @@ a {
   text-underline-offset: 0.2em;
 }
 
+/* Atrybut hidden ma działać także tam, gdzie element dostał własne display (np. pole szukania) */
+[hidden] {
+  display: none !important;
+}
+
 /* 4. Układ strony: kontener, Flexbox (nagłówek, nawigacja), Grid (hero, statystyki) */
 .page {
   width: min(100% - 2 * var(--page-margin), var(--page-max));
@@ -436,6 +441,7 @@ label {
 
 input[type="email"],
 input[type="password"],
+input[type="search"],
 input[type="text"],
 textarea,
 select {
@@ -490,6 +496,52 @@ textarea {
 }
 
 /* Formularz wina jest szerszy niż logowanie, bo ma kilkanaście pól */
+/* Przycisk „Pokaż hasło” (public/js/modules/password-toggle.js) pod polem hasła */
+.password-toggle {
+  align-self: flex-start;
+  padding-block: var(--space-xs);
+  font-size: 0.875rem;
+}
+
+/* Licznik znaków pod polem wieloliniowym (public/js/modules/char-counter.js) */
+.char-counter {
+  margin: 0;
+  color: var(--color-muted);
+  font-size: 0.8125rem;
+  text-align: right;
+}
+
+.char-counter.is-near-limit {
+  color: var(--color-error);
+  font-weight: 600;
+}
+
+/* Wyszukiwarka w katalogu win (public/js/modules/wine-search.js); do czasu załadowania skryptu ukryta */
+.catalog-search {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+  max-width: 28rem;
+  margin-bottom: var(--space-lg);
+}
+
+.catalog-search .form-hint {
+  min-height: 1.25rem;
+  margin: 0;
+}
+
+/* ikona czyszczenia pola szukania: domyślna jest niebieska i ginie na bordowym tle */
+.catalog-search input[type="search"]::-webkit-search-cancel-button {
+  filter: brightness(0) invert(1);
+  cursor: pointer;
+}
+
+input::placeholder,
+textarea::placeholder {
+  color: var(--color-muted);
+  opacity: 0.8;
+}
+
 .auth-card-wide {
   width: min(100%, 44rem);
 }

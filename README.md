@@ -284,6 +284,8 @@ my-app/
 │   ├── index.php            # front controller, definicje tras
 │   ├── css/style.css        # design system „Terroir & Heritage Luxe”, tokeny obu motywów
 │   ├── js/theme.js          # przełącznik motywu jasny/ciemny/systemowy
+│   ├── js/app.js            # punkt wejścia JavaScriptu (moduł ES), uruchamia moduły z js/modules/
+│   ├── js/modules/          # walidacja formularzy, pokaż hasło, licznik znaków, wyszukiwarka win
 │   └── views/               # widoki *.html.php (sam element <main>)
 │       ├── layout.html.php  # wspólny szkielet strony, składa head, nagłówek, treść i stopkę
 │       ├── error.html.php   # wspólny widok błędów 400, 401, 403, 404 i 500
@@ -360,10 +362,36 @@ Formularze logowania, rejestracji i wina działają tak samo:
 - `POST` jest obsługiwany w `SecurityController` (logowanie, rejestracja) i `WineManagementController` (wina), a wartości z `$_POST` czyta `AppController::postString()` (pole z tablicą, np. `email[]=x`, traktowane jest jak puste),
 - przy błędzie kontroler odsyła formularz z kodem **422**, komunikatami przy polach i wpisanym e-mailem; haseł nigdy nie odsyła,
 - komunikaty są powiązane z polami przez `aria-describedby` i `aria-invalid`, a nad formularzem jest podsumowanie błędów z linkami do pól,
-- formularze mają `novalidate`, żeby komunikaty zawsze pochodziły z serwera,
+- formularze mają `novalidate`, żeby przeglądarka nie pokazywała własnych dymków; komunikaty pochodzą z serwera, a przy włączonym JavaScripcie pokazuje je wcześniej `public/js` (sekcja „JavaScript (Lab 10)”),
 - przy poprawnych danych kontroler odpowiada przekierowaniem **303** (wzorzec Post/Redirect/Get), więc odświeżenie strony nie wysyła formularza drugi raz.
 
+Reguły pól są zapisane raz, tekstem, np. `['required', 'max_length:254']`, w stałych kontrolera (`SecurityController::REGISTER_RULES`, `WineManagementController::fieldRules()`). Serwer stosuje je przez `Validator::withRules()`, a widok wypisuje ten sam zapis w atrybucie `data-rules` pola, z którego korzysta JavaScript. Dzięki temu serwer i przeglądarka sprawdzają te same reguły i nie trzeba ich utrzymywać w dwóch miejscach.
+
 Limity pól: e-mail do 254 znaków, hasło od 8 do 64 znaków (i najwyżej 72 bajty, bo tyle uwzględnia bcrypt), z literą, cyfrą i znakiem specjalnym. W formularzu wina liczby przyjmują przecinek lub kropkę (cena do 2 miejsc po przecinku, moc alkoholu do 1), rocznik to 1900–2100, a potrawy wpisuje się po jednej w wierszu (najwyżej 10).
+
+## JavaScript (Lab 10)
+
+JavaScript jest dodatkiem do działającej strony (progressive enhancement): bez niego formularze waliduje serwer, a katalog win filtrują linki rodzajów. Layout ładuje `public/js/app.js` jako moduł ES (`<script type="module">`), który wykonuje się po zbudowaniu dokumentu, tak jak skrypt z atrybutem `defer`. `app.js` tylko wywołuje moduły z `public/js/modules/`, a każdy z nich szuka własnych elementów i nic nie robi, gdy ich nie ma.
+
+| Moduł | Co robi |
+|---|---|
+| `validation-rules.js` | reguły walidacji o tych samych nazwach co w `Validator` (PHP): `required`, `email`, `min_length`, `max_length`, `max_bytes`, `matches`, `letter_and_digit`, `special_character`, `in_list`, `integer_between`, `decimal_between` |
+| `form-validation.js` | obsługa zdarzeń `change`, `input` i `submit` w formularzach z `data-validate`, blokada przycisku po wysłaniu |
+| `field-feedback.js` | manipulacja DOM: komunikat przy polu, `aria-invalid`, `aria-describedby`, podsumowanie błędów nad formularzem |
+| `password-toggle.js` | przycisk „Pokaż hasło” (`aria-pressed`) pod polami hasła |
+| `char-counter.js` | licznik znaków pod polami wieloliniowymi z limitem |
+| `wine-search.js` | wyszukiwarka w katalogu win: filtruje karty na bieżąco, bez wielkości liter i polskich znaków |
+| `messages.js` | odczyt tekstów interfejsu przekazanych przez layout |
+
+Jak działa walidacja w przeglądarce:
+
+- pole jest sprawdzane po opuszczeniu zmienionego pola (`change`); gdy ma już błąd, komunikat poprawia się przy każdym znaku (`input`), a potwierdzenie hasła jest sprawdzane ponownie po zmianie hasła,
+- przy wysyłaniu (`submit`) sprawdzane są wszystkie pola; przy błędach formularz nie jest wysyłany, nad nim pojawia się podsumowanie z linkami do pól, a fokus trafia na pierwsze błędne pole,
+- komunikaty pochodzą z `config/content.php` (sekcje `validation`, `forms`, `js`): layout wypisuje je jako JSON w `<script type="application/json" id="js-messages">`, więc kod JavaScript nie zawiera żadnych napisów i podąży za tłumaczeniem,
+- tekst błędów trafia do strony przez `textContent`, nigdy przez `innerHTML`,
+- to tylko wygoda użytkownika: serwer waliduje te same dane jeszcze raz, bo żądanie można wysłać z pominięciem JavaScriptu.
+
+Wyszukiwarka w `/wines` jest ukryta (`hidden`), dopóki skrypt jej nie pokaże, a liczba wyników trafia do regionu `role="status"`; szuka w nazwie, rodzaju, szczepie i opisie karty, w obrębie kategorii wybranej linkiem filtra.
 
 ## Uwierzytelnianie i sesje (Lab 9)
 

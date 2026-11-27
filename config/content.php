@@ -64,6 +64,8 @@ return [
         'empty' => 'Aktualnie nie ma win w ofercie.',
         'empty_filtered' => 'W tej kategorii nie ma teraz żadnych win.',
         'filter_label' => 'Filtruj wina według rodzaju',
+        'search_label' => 'Szukaj w katalogu',
+        'search_placeholder' => 'Nazwa, szczep lub rodzaj wina',
         'filters' => [
             'all' => 'Wszystkie',
             'red' => 'Czerwone',
@@ -419,6 +421,16 @@ return [
 
     'forms' => [
         'error_summary' => 'Popraw zaznaczone pola:',
+        'show_password' => 'Pokaż hasło',
+    ],
+
+    // Teksty dla JavaScriptu (public/js): layout przekazuje je w <script type="application/json">,
+    // razem z sekcjami "forms" i "validation", więc kod JS nie zawiera żadnych napisów.
+    'js' => [
+        'counter' => '{count} / {max} znaków',
+        'saving' => 'Zapisywanie…',
+        'search_status' => 'Pokazano {shown} z {total} win.',
+        'search_empty' => 'Żadne wino nie pasuje do wyszukiwania „{query}”.',
     ],
 
     'flash' => [
