@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Controller;
 
+use App\Exception\AccountBlockedException;
 use App\Exception\EmailAlreadyUsedException;
 use App\Service\AuthService;
 use App\Service\Session;
@@ -53,6 +54,7 @@ final class SecurityController extends AppController
      * POST /login – obsługa formularza.
      * Brak pola albo zły token CSRF to 403, błędny format pól to 422 z komunikatami przy polach.
      * Zły adres lub hasło dają jeden, ogólny komunikat (nie zdradza, czy konto istnieje).
+     * Zablokowane konto z poprawnym hasłem dostaje 403 i osobny komunikat.
      * Po poprawnym logowaniu id sesji jest wymieniane, a użytkownik trafia na /account (303).
      */
     public function authenticate(): void
@@ -71,7 +73,14 @@ final class SecurityController extends AppController
             return;
         }
 
-        $user = $this->auth()->authenticate($email, $password);
+        try {
+            $user = $this->auth()->authenticate($email, $password);
+        } catch (AccountBlockedException) {
+            http_response_code(403);
+            $this->renderLogin([], ['email' => $email], $this->text('login.account_blocked'));
+
+            return;
+        }
 
         if ($user === null) {
             http_response_code(422);

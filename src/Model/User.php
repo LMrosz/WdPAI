@@ -17,6 +17,7 @@ final readonly class User
         public Role $role,
         public \DateTimeImmutable $createdAt,
         public ?string $displayName = null,
+        public bool $isBlocked = false,
     ) {
     }
 

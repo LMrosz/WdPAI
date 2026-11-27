@@ -15,7 +15,7 @@ use PDOException;
 final class PostgresUserRepository implements UserRepositoryInterface
 {
     /** Rola jest łączona JOIN-em, bo w users trzymamy tylko jej klucz obcy. */
-    private const SELECT = 'SELECT u.id, u.email, u.password_hash, u.display_name, u.created_at, r.code AS role
+    private const SELECT = 'SELECT u.id, u.email, u.password_hash, u.display_name, u.is_blocked, u.created_at, r.code AS role
         FROM users u
         JOIN roles r ON r.id = u.role_id';
 
@@ -68,6 +68,40 @@ final class PostgresUserRepository implements UserRepositoryInterface
             ?? throw new \LogicException('Konto zniknęło tuż po zapisie.');
     }
 
+    public function findAll(): array
+    {
+        $statement = $this->database->query(self::SELECT . ' ORDER BY u.id');
+
+        return array_map(
+            fn (array $row): User => $this->mapRow($row) ?? throw new \LogicException('Pusty wiersz konta.'),
+            $statement->fetchAll(),
+        );
+    }
+
+    public function setBlocked(int $id, bool $blocked): bool
+    {
+        $statement = $this->database->prepare(
+            'UPDATE users SET is_blocked = :blocked, updated_at = CURRENT_TIMESTAMP WHERE id = :id'
+        );
+        // typ podajemy jawnie, żeby kolumna boolean dostała prawdziwą wartość logiczną
+        $statement->bindValue('blocked', $blocked, PDO::PARAM_BOOL);
+        $statement->bindValue('id', $id, PDO::PARAM_INT);
+        $statement->execute();
+
+        return $statement->rowCount() > 0;
+    }
+
+    public function changeRole(int $id, Role $role): bool
+    {
+        $statement = $this->database->prepare(
+            'UPDATE users SET role_id = (SELECT id FROM roles WHERE code = :role), updated_at = CURRENT_TIMESTAMP
+             WHERE id = :id'
+        );
+        $statement->execute(['role' => $role->value, 'id' => $id]);
+
+        return $statement->rowCount() > 0;
+    }
+
     public function delete(int $id): bool
     {
         $statement = $this->database->prepare('DELETE FROM users WHERE id = :id');
@@ -90,6 +124,7 @@ final class PostgresUserRepository implements UserRepositoryInterface
             role: Role::from((string) $row['role']),
             createdAt: new \DateTimeImmutable((string) $row['created_at']),
             displayName: $row['display_name'],
+            isBlocked: filter_var($row['is_blocked'], FILTER_VALIDATE_BOOLEAN),
         );
     }
 }
