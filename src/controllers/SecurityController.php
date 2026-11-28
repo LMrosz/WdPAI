@@ -7,10 +7,12 @@ namespace App\Controller;
 use App\Database;
 use App\Exception\AccountBlockedException;
 use App\Exception\EmailAlreadyUsedException;
+use App\Exception\MailException;
 use App\Repository\FailedLoginRepositoryInterface;
 use App\Repository\PostgresFailedLoginRepository;
 use App\Service\AuthService;
 use App\Service\LoginThrottle;
+use App\Service\MailService;
 use App\Service\Session;
 use App\Service\Validator;
 
@@ -47,6 +49,13 @@ final class SecurityController extends AppController
 
     private ?AuthService $auth = null;
     private ?LoginThrottle $throttle = null;
+    private ?MailService $mail;
+
+    /** Serwis poczty można podać z zewnątrz (testy); bez niego powstaje dopiero przy pierwszej wysyłce. */
+    public function __construct(?MailService $mail = null)
+    {
+        $this->mail = $mail;
+    }
 
     /** GET /login – formularz logowania (GUEST, CELLAR_MASTER, WINERY_OWNER). */
     public function login(): void
@@ -155,7 +164,7 @@ final class SecurityController extends AppController
         }
 
         try {
-            $this->auth()->register($email, $this->postString('password'));
+            $user = $this->auth()->register($email, $this->postString('password'));
         } catch (EmailAlreadyUsedException) {
             // także gdy dwa żądania z tym samym adresem trafią do bazy równocześnie (UNIQUE w bazie)
             http_response_code(422);
@@ -164,7 +173,8 @@ final class SecurityController extends AppController
             return;
         }
 
-        $this->redirect('/login?registered=1');
+        // konto już istnieje, więc ewentualna awaria poczty niczego nie cofa: użytkownik dostaje tylko ostrzeżenie
+        $this->redirect('/login?registered=1&mail=' . ($this->sendWelcomeEmail($user->email->value(), $user->label()) ? 'sent' : 'failed'));
     }
 
     /**
@@ -180,6 +190,23 @@ final class SecurityController extends AppController
 
         // sesja nie istnieje, więc komunikat przechodzi w adresie (jak ?registered=1)
         $this->redirect('/login?logged_out=1');
+    }
+
+    /**
+     * Wysyła wiadomość powitalną. Zwraca false, gdy się nie udało; szczegóły błędu SMTP trafiają
+     * tylko do dziennika serwera, nigdy do użytkownika.
+     */
+    private function sendWelcomeEmail(string $email, string $name): bool
+    {
+        try {
+            ($this->mail ??= MailService::create())->sendWelcomeEmail($email, $name);
+
+            return true;
+        } catch (MailException $exception) {
+            error_log('Welcome e-mail failed: ' . $exception->getMessage());
+
+            return false;
+        }
     }
 
     /** Serwis ograniczający próby logowania powstaje przy pierwszym użyciu, na wspólnym połączeniu z bazą. */
@@ -234,6 +261,8 @@ final class SecurityController extends AppController
             'old' => $old,
             'formError' => $formError,
             'registered' => ($_GET['registered'] ?? null) === '1',
+            // tylko wartości z zamkniętej listy; cokolwiek innego w adresie jest ignorowane
+            'mailStatus' => in_array($_GET['mail'] ?? null, ['sent', 'failed'], true) ? $_GET['mail'] : null,
             'loggedOut' => ($_GET['logged_out'] ?? null) === '1',
         ], true);
     }

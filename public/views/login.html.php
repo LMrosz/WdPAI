@@ -6,6 +6,7 @@
  * @var array<string, string> $old wcześniej wpisane wartości
  * @var string|null $formError ogólny błąd formularza (zły adres lub hasło)
  * @var bool $registered czy użytkownik wraca po założeniu konta
+ * @var 'sent'|'failed'|null $mailStatus wynik wysyłki wiadomości powitalnej (tylko po rejestracji)
  * @var bool $loggedOut czy użytkownik wraca po wylogowaniu
  */
 $fields = [
@@ -21,6 +22,11 @@ $labels = array_column($fields, 'label', 'name');
         <h1 id="login-title"><?= $t('login.title') ?></h1>
         <?php if ($registered): ?>
             <p class="form-status" role="status"><?= $t('login.registered') ?></p>
+            <?php if ($mailStatus === 'sent'): ?>
+                <p class="form-status" role="status"><?= $t('login.mail_sent') ?></p>
+            <?php elseif ($mailStatus === 'failed'): ?>
+                <p class="form-status form-status-warning" role="status"><?= $t('login.mail_failed') ?></p>
+            <?php endif; ?>
         <?php endif; ?>
         <?php if ($loggedOut): ?>
             <p class="form-status" role="status"><?= $t('login.logged_out') ?></p>
