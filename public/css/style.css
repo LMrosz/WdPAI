@@ -45,7 +45,7 @@
 }
 
 /* Białe powierzchnie motywu jasnego: tu wracają ciemne kolory tekstu i bordowe akcenty */
-:root:not([data-theme="dark"]) :is(.site-header, .site-footer, .card, .stat-card, .auth-card, .cta-box, .admin .form-status, .admin .form-errors, [data-reservations] .form-status, [data-reservations] .form-errors) {
+:root:not([data-theme="dark"]) :is(.site-header, .site-footer, .card, .stat-card, .auth-card, .cta-box, .flash .form-status, .admin .form-status, .admin .form-errors, [data-reservations] .form-status, [data-reservations] .form-errors) {
   --color-canvas: #fbf6f3;           /* tło pól formularza na białej karcie */
   --color-text: #241015;
   --color-muted: #5e4b50;
