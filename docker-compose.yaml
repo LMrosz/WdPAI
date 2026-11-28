@@ -1,3 +1,24 @@
+# Zmienne środowiskowe wspólne dla aplikacji (php) i zadań cyklicznych (cron).
+# Wartości pochodzą z pliku .env (wzór: .env.example); po znaku :- jest wartość domyślna.
+x-app-environment: &app-environment
+  # w Dockerze baza jest pod nazwą usługi db i portem wewnętrznym 5432
+  DB_HOST: db
+  DB_PORT: 5432
+  DB_NAME: ${POSTGRES_DB:-app}
+  DB_USER: ${POSTGRES_USER:-app}
+  DB_PASSWORD: ${POSTGRES_PASSWORD:-app_password}
+  # przy 1 aplikacja odmawia obsługi logowania i rejestracji przez zwykłe HTTP, a ciasteczko sesji jest Secure
+  FORCE_HTTPS: ${FORCE_HTTPS:-1}
+  # poczta: lokalnie Mailpit (usługa mailpit, port SMTP 1025)
+  MAIL_HOST: ${MAIL_HOST:-mailpit}
+  MAIL_PORT: ${MAIL_PORT:-1025}
+  MAIL_USERNAME: ${MAIL_USERNAME:-}
+  MAIL_PASSWORD: ${MAIL_PASSWORD:-}
+  MAIL_ENCRYPTION: ${MAIL_ENCRYPTION:-}
+  MAIL_FROM: ${MAIL_FROM:-noreply@corvobianco.local}
+  MAIL_FROM_NAME: ${MAIL_FROM_NAME:-Corvo Bianco}
+  APP_URL: ${APP_URL:-https://localhost:8443}
+
 services:
   server:
     build:
@@ -43,23 +64,47 @@ services:
     build:
       context: .
       dockerfile: docker/php/Dockerfile
-    command: sh -c "composer dump-autoload --no-interaction && exec php-fpm"
+    # composer install pobiera PHPMailera do vendor/ (bind mount ukrywa vendor/ z obrazu); bez sieci zostaje samo dump-autoload.
+    # Katalog uploads/wines musi być zapisywalny dla PHP-FPM (www-data); gdy chown się nie uda (niektóre systemy plików
+    # Docker Desktop), katalog dostaje prawa dla wszystkich. Błąd któregokolwiek kroku nie blokuje startu php-fpm.
+    command: >
+      sh -c "(composer install --no-dev --no-interaction --no-progress || composer dump-autoload --no-interaction);
+      mkdir -p public/uploads/wines;
+      chown -R www-data:www-data public/uploads || chmod -R 0777 public/uploads;
+      exec php-fpm"
     volumes:
       - .:/app
     environment:
-      # w Dockerze baza jest pod nazwą usługi db i portem wewnętrznym 5432
-      DB_HOST: db
-      DB_PORT: 5432
-      DB_NAME: ${POSTGRES_DB:-app}
-      DB_USER: ${POSTGRES_USER:-app}
-      DB_PASSWORD: ${POSTGRES_PASSWORD:-app_password}
-      # przy 1 aplikacja odmawia obsługi logowania i rejestracji przez zwykłe HTTP, a ciasteczko sesji jest Secure
-      FORCE_HTTPS: ${FORCE_HTTPS:-1}
+      <<: *app-environment
     depends_on:
       db:
         condition: service_healthy
     extra_hosts:
       - "host.docker.internal:host-gateway"
+    networks:
+      - pg-network
+
+  # zadania cykliczne (Lab 13): crond uruchamia bin/send-tasting-reminders.php według docker/cron/crontab
+  cron:
+    build:
+      context: .
+      dockerfile: docker/php/Dockerfile
+    working_dir: /app
+    # start.sh instaluje harmonogram z docker/cron/crontab (po usunięciu znaków CR) i uruchamia crond
+    command: sh -c "tr -d '\\r' < /app/docker/cron/start.sh > /tmp/start.sh && exec sh /tmp/start.sh"
+    volumes:
+      - .:/app
+    environment:
+      <<: *app-environment
+      # bez Xdebuga w zadaniach CLI: brak prób łączenia z IDE przy każdym uruchomieniu
+      XDEBUG_MODE: "off"
+    depends_on:
+      db:
+        condition: service_healthy
+      mailpit:
+        condition: service_started
+      php:
+        condition: service_started
     networks:
       - pg-network
 

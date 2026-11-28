@@ -1,0 +1,4 @@
+# Harmonogram zadań cyklicznych (format: minuta godzina dzień-miesiąca miesiąc dzień-tygodnia polecenie).
+# Co godzinę, o pełnej godzinie, wysyłamy przypomnienia o degustacjach zaczynających się w ciągu najbliższych 24 godzin.
+# Wynik (ile wiadomości wysłano) trafia do logu kontenera: docker compose logs cron
+0 * * * * . /etc/cron.env; cd /app && php bin/send-tasting-reminders.php >> /proc/1/fd/1 2>&1

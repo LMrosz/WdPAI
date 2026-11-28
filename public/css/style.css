@@ -45,7 +45,7 @@
 }
 
 /* Białe powierzchnie motywu jasnego: tu wracają ciemne kolory tekstu i bordowe akcenty */
-:root:not([data-theme="dark"]) :is(.site-header, .site-footer, .card, .stat-card, .auth-card, .cta-box, .admin .form-status, .admin .form-errors, [data-reservations] .form-status, [data-reservations] .form-errors) {
+:root:not([data-theme="dark"]) :is(.site-header, .site-footer, .card, .stat-card, .auth-card, .cta-box, .flash .form-status, .admin .form-status, .admin .form-errors, [data-reservations] .form-status, [data-reservations] .form-errors) {
   --color-canvas: #fbf6f3;           /* tło pól formularza na białej karcie */
   --color-text: #241015;
   --color-muted: #5e4b50;
@@ -439,7 +439,14 @@ label {
   border-radius: var(--radius);
 }
 
+/* Ostrzeżenie (np. nie wysłano e-maila, choć konto powstało): ta sama karta w kolorze błędu */
+.form-status-warning {
+  background-color: color-mix(in srgb, var(--color-error) 8%, var(--color-surface));
+  border-left-color: var(--color-error);
+}
+
 input[type="email"],
+input[type="file"],
 input[type="password"],
 input[type="search"],
 input[type="text"],
@@ -471,6 +478,26 @@ input[type="checkbox"] {
   height: 1.125rem;
   margin: 0;
   accent-color: var(--color-primary);
+}
+
+/* Aktualne zdjęcie wina w formularzu edycji */
+.photo-current {
+  display: flex;
+  align-items: center;
+  gap: var(--space-md);
+  margin: 0 0 var(--space-md);
+}
+
+.photo-current img {
+  width: 6rem;
+  height: 6rem;
+  object-fit: cover;
+  border-radius: var(--radius);
+  border: 1px solid var(--color-border);
+}
+
+.photo-current + .form-check {
+  margin-bottom: var(--space-md);
 }
 
 /* Przycisk wysyłki na całą szerokość karty */
@@ -915,6 +942,18 @@ select:disabled {
   border-bottom: 1px solid var(--color-border);
 }
 
+/* Zdjęcie wgrane przez piwniczego zastępuje ilustrację butelki; wypełnia kafel bez zniekształceń */
+.card-visual--photo {
+  padding: 0;
+}
+
+.card-visual--photo img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
 .card-visual .bottle {
   filter: drop-shadow(0 8px 8px rgba(0, 0, 0, 0.3));
 }
@@ -1136,6 +1175,17 @@ select:disabled {
 .wine-stage .bottle {
   position: relative;
   filter: drop-shadow(0 18px 20px rgba(0, 0, 0, 0.45));
+}
+
+.wine-stage--photo {
+  padding: 0;
+}
+
+.wine-stage--photo img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
 }
 
 .wine-stage-year {

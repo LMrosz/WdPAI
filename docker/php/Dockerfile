@@ -27,12 +27,9 @@ RUN apk add --no-cache \
         pdo_pgsql \
     && apk del .build-deps
 
-RUN { \
-      echo 'memory_limit = -1'; \
-      echo 'upload_max_filesize = 512M'; \
-      echo 'post_max_size = 512M'; \
-      echo 'max_file_uploads = 20'; \
-    } > /usr/local/etc/php/conf.d/mealplanner.ini
+# Limity PHP (Lab 13): zdjęcie wina ma najwyżej 2 MB (sprawdza to też aplikacja), więc cały formularz
+# nie potrzebuje więcej niż kilku MB; nginx przepuszcza do 3 MB (client_max_body_size).
+COPY docker/php/uploads.ini /usr/local/etc/php/conf.d/zz-uploads.ini
 
 # Xdebug (debugowanie krokowe w IDE); ustawienia w docker/php/xdebug.ini
 RUN apk add --no-cache --virtual .xdebug-build-deps $PHPIZE_DEPS linux-headers \
@@ -47,4 +44,6 @@ COPY docker/php/security.ini /usr/local/etc/php/conf.d/zz-security.ini
 COPY . .
 
 ENV COMPOSER_ALLOW_SUPERUSER=1
-RUN composer dump-autoload --optimize --no-interaction
+# zależności (PHPMailer) bez pakietów deweloperskich; przy uruchomieniu usługi php robi to też docker-compose,
+# bo bind mount .:/app przykrywa katalog vendor/ z obrazu
+RUN composer install --no-dev --optimize-autoloader --no-interaction --no-progress

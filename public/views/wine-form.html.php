@@ -9,6 +9,9 @@
  * @var array<string, list<string>> $rules reguły walidacji pól (pole => lista reguł)
  * @var array<string, string> $errors nazwa pola => komunikat
  * @var array<string, string> $old wartości pól
+ * @var string|null $imagePath ścieżka aktualnego zdjęcia wina (względem public/), przy edycji
+ * @var string $photoAccept dozwolone typy plików w oknie wyboru
+ * @var int|float $photoMaxMb limit rozmiaru zdjęcia w MB
  */
 // pomocnicze domknięcia: etykieta pola z treści i definicja pola dla partialu form-field
 $label = fn (string $name): string => $content->text('wines.form.' . $name);
@@ -43,6 +46,10 @@ $groups = [
     'pairings' => [
         $text('pairings', 'textarea', ['rows' => 4, 'hint' => $label('pairings_hint')]),
     ],
+    'photo' => [
+        ['name' => 'photo', 'type' => 'file', 'label' => $label('photo'), 'accept' => $photoAccept,
+            'hint' => $content->fill($label('photo_hint'), ['max' => $photoMaxMb])],
+    ],
 ];
 
 $labels = [];
@@ -58,13 +65,23 @@ foreach ($groups as $fields) {
         <h1 id="wine-form-title"><?= $t($editing ? 'wines.form.edit_title' : 'wines.form.create_title') ?></h1>
         <p class="auth-intro"><?= $t('wines.form.required_note') ?></p>
 
-        <form action="<?= $e($formAction) ?>" method="post" novalidate data-validate>
+        <form action="<?= $e($formAction) ?>" method="post" enctype="multipart/form-data" novalidate data-validate>
             <?php require __DIR__ . '/partials/csrf-field.html.php'; ?>
             <?php require __DIR__ . '/partials/form-errors.html.php'; ?>
 
             <?php foreach ($groups as $groupKey => $fields): ?>
                 <fieldset>
                     <legend><?= $t('wines.form.group_' . $groupKey) ?></legend>
+                    <?php if ($groupKey === 'photo' && $imagePath !== null): ?>
+                        <figure class="photo-current">
+                            <img src="/<?= $e($imagePath) ?>" alt="" width="96" height="96">
+                            <figcaption><?= $t('wines.form.photo_current') ?></figcaption>
+                        </figure>
+                        <div class="form-check">
+                            <input type="checkbox" id="remove_photo" name="remove_photo" value="1">
+                            <label for="remove_photo"><?= $t('wines.form.photo_remove') ?></label>
+                        </div>
+                    <?php endif; ?>
                     <?php foreach ($fields as $field): ?>
                         <?php require __DIR__ . '/partials/form-field.html.php'; ?>
                     <?php endforeach; ?>

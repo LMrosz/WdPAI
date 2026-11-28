@@ -40,6 +40,7 @@ final readonly class Wine
         public ?string $serving = null,
         public ?string $cellaring = null,
         public array $pairings = [],
+        public ?string $imagePath = null,
     ) {
     }
 
@@ -64,7 +65,14 @@ final readonly class Wine
             serving: isset($row['serving']) ? (string) $row['serving'] : null,
             cellaring: isset($row['cellaring']) ? (string) $row['cellaring'] : null,
             pairings: array_values(array_map('strval', (array) ($row['pairings'] ?? []))),
+            imagePath: isset($row['image_path']) ? (string) $row['image_path'] : null,
         );
+    }
+
+    /** Adres zdjęcia wina na stronie (np. /uploads/wines/….jpg) albo null, gdy wino nie ma zdjęcia. */
+    public function imageUrl(): ?string
+    {
+        return $this->imagePath === null ? null : '/' . $this->imagePath;
     }
 
     /** Czy wino ma notatki degustacyjne (aromat, smak lub finisz). */

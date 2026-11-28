@@ -11,7 +11,7 @@ VinoKeep to aplikacja webowa dla winnic: prezentuje ofertę (wina, degustacje, h
 | Degustacje (`/tastings`) | Oferty degustacji z winami i najbliższymi terminami (wolne miejsca z widoku bazy), kroki rezerwacji oraz formularze rezerwacji i anulowania dla zalogowanych | gotowe, dane z bazy, rezerwacje przez Fetch API (wymagają JavaScriptu) |
 | O winnicy (`/about`) | Historia, fakty i cechy posiadłości | gotowe |
 | Logowanie (`/login`) | Uwierzytelnianie hasłem (`password_verify`), sesja z nowym id po zalogowaniu, jeden ogólny komunikat przy złym adresie lub haśle, token CSRF | gotowe |
-| Rejestracja (`/register`) | Walidacja e-maila i hasła (długość, litera, cyfra, znak specjalny, powtórzenie), zapis konta gościa ze skrótem hasła (`password_hash`), obsługa zajętego adresu | gotowe |
+| Rejestracja (`/register`) | Walidacja e-maila i hasła (długość, litera, cyfra, znak specjalny, powtórzenie), zapis konta gościa ze skrótem hasła (`password_hash`), jednakowa odpowiedź dla nowego i zajętego adresu (formularz nie zdradza, kto ma konto), wiadomość powitalna e-mailem (Lab 13) | gotowe |
 | Wylogowanie (`POST /logout`) | Czyści sesję, wygasza ciasteczko i niszczy sesję; wymaga tokenu CSRF | gotowe |
 | Konto (`/account`) | Dane zalogowanego użytkownika, jego rola i uprawnienia; bez logowania 401 | gotowe |
 | Zarządzanie winami (`/wines/new`, `/wines/{id}/edit`) | Formularze dodawania i edycji z walidacją, usuwanie z potwierdzeniem; piwniczy dodaje i edytuje, administrator i właściciel dodatkowo usuwają | gotowe |
@@ -23,7 +23,10 @@ VinoKeep to aplikacja webowa dla winnic: prezentuje ofertę (wina, degustacje, h
 | Role użytkowników | `GUEST`, `CELLAR_MASTER`, `ADMIN` (może być ich wielu) i `WINERY_OWNER` (jeden, wymuszone indeksem w bazie) z uprawnieniami sprawdzanymi po stronie serwera (401 bez logowania, 403 przy niewłaściwej roli) | gotowe |
 | Bezpieczeństwo (Lab 12) | HTTPS z przekierowaniem z HTTP, limit prób logowania (429 i `Retry-After`), dziennik nieudanych logowań bez haseł, singleton repozytorium użytkowników, błędy tylko w logu serwera; tabela dowodów dla wszystkich punktów A1–E5 w sekcji „Bezpieczeństwo (Lab 12)” | gotowe (Lab 12) |
 | Rezerwacje degustacji | Zalogowany użytkownik rezerwuje i anuluje miejsca na `/tastings` bez przeładowania strony (`POST /api/reservations`, `DELETE /api/reservations/{id}`); liczbę wolnych miejsc zwraca widok bazy, a zapis działa w transakcji z blokadą terminu, więc nie da się sprzedać więcej miejsc, niż jest | gotowe (Lab 8 i 11) |
-| Upload, edycja treści | Zdjęcia, edycja treści w panelu | planowane w przyszłości |
+| E-mail po rejestracji (Lab 13) | Po założeniu konta aplikacja wysyła wiadomość powitalną przez SMTP (PHPMailer); lokalnie ląduje w Mailpit (http://localhost:8025). Awaria poczty nie cofa konta, użytkownik widzi tylko ostrzeżenie | gotowe (Lab 13) |
+| Zdjęcia win (Lab 13) | Piwniczy dodaje, podmienia i usuwa zdjęcie butelki w formularzu wina; plik jest sprawdzany (rozmiar, prawdziwy typ MIME, rozszerzenie) i zapisywany pod losową nazwą, a w bazie jest tylko ścieżka | gotowe (Lab 13) |
+| Zadanie CRON (Lab 13) | Co godzinę kontener `cron` wysyła gościom przypomnienie o degustacji, która zaczyna się w ciągu 24 godzin; zadanie zapisuje wynik w logu i jest bezpieczne przy powtórzeniu | gotowe (Lab 13) |
+| Edycja treści | Edycja treści w panelu | planowane w przyszłości |
 
 ## Tech stack
 
@@ -34,6 +37,8 @@ VinoKeep to aplikacja webowa dla winnic: prezentuje ofertę (wina, degustacje, h
 | Baza danych | PostgreSQL (kontener `db`), dostęp z PHP przez PDO i sterownik `pdo_pgsql` |
 | Frontend | HTML (widoki PHP), jeden plik CSS (zmienne CSS, Flexbox, Grid, mobile-first), JavaScript bez bibliotek (przełącznik motywu, walidacja formularzy, Fetch API w panelu użytkowników) |
 | Konteneryzacja | Docker Compose |
+| Poczta | PHPMailer (SMTP), lokalnie Mailpit do podglądu wiadomości |
+| Zadania cykliczne | `crond` (busybox) w osobnym kontenerze `cron`, skrypt `bin/send-tasting-reminders.php` |
 | Narzędzia | Mailpit (podgląd maili), pgAdmin (zarządzanie bazą) |
 
 ## Szybki start
@@ -53,7 +58,7 @@ docker compose up --build -d
 
 Aplikacja działa przez HTTPS z certyfikatem samopodpisanym, który powstaje przy budowie obrazu nginx (tylko do pracy lokalnej), więc przeglądarka pokaże ostrzeżenie: wybierz „Zaawansowane”, a potem „Przejdź do localhost”. Jeśli wolisz zwykłe HTTP, ustaw w `.env` `FORCE_HTTPS=0` i uruchom `docker compose up -d`; wtedy aplikacja działa pod `http://localhost:8080` (szczegóły w „Bezpieczeństwo (Lab 12)”).
 
-Porty i dane dostępowe są w pliku `.env`, który powstaje z wzoru `.env.example` (sam `.env` jest w `.gitignore`): `POSTGRES_DB`, `POSTGRES_USER`, `POSTGRES_PASSWORD`, `POSTGRES_PORT`, `MAILPIT_PORT`, `FORCE_HTTPS`, `HTTPS_PORT`, `PGADMIN_PORT`, `PGADMIN_DEFAULT_EMAIL` i `PGADMIN_DEFAULT_PASSWORD`. Bez pliku `.env` compose używa tych samych wartości domyślnych. Zatrzymanie: `docker compose down`.
+Porty i dane dostępowe są w pliku `.env`, który powstaje z wzoru `.env.example` (sam `.env` jest w `.gitignore`): `POSTGRES_DB`, `POSTGRES_USER`, `POSTGRES_PASSWORD`, `POSTGRES_PORT`, `MAILPIT_PORT`, `MAIL_HOST`, `MAIL_PORT`, `MAIL_USERNAME`, `MAIL_PASSWORD`, `MAIL_ENCRYPTION`, `MAIL_FROM`, `MAIL_FROM_NAME`, `APP_URL`, `FORCE_HTTPS`, `HTTPS_PORT`, `PGADMIN_PORT`, `PGADMIN_DEFAULT_EMAIL` i `PGADMIN_DEFAULT_PASSWORD`. Bez pliku `.env` compose używa tych samych wartości domyślnych. Zatrzymanie: `docker compose down`.
 
 Przy pierwszym starcie z pustym wolumenem bazy tabele i dane demonstracyjne tworzą się same. Jeśli wolumen `pg-data` już istnieje, trzeba załadować schemat ręcznie (patrz „Baza danych”). Po aktualizacji z wcześniejszego laboratorium wystarczy dopisać do działającej bazy migrację z Lab 11:
 
@@ -69,6 +74,15 @@ docker compose exec db psql -U app -d app -v ON_ERROR_STOP=1 -f /docker-entrypoi
 ```
 
 Zmiany z Lab 12 dotyczą też obrazów (nginx z TLS i ustawienia PHP), więc po pobraniu kodu uruchom `docker compose up --build -d`.
+
+Lab 13 dopisuje do działającej bazy dwie migracje: `07` (kolumna `wines.image_path` na zdjęcia) i `08` (kolumna `reservations.reminder_sent_at` dla zadania CRON). **Bez nich nie działa formularz wina, katalog win ani rezerwacje**, bo zapytania czytają te kolumny:
+
+```bash
+docker compose exec db psql -U app -d app -v ON_ERROR_STOP=1 -f /docker-entrypoint-initdb.d/07-wine-photos.sql
+docker compose exec db psql -U app -d app -v ON_ERROR_STOP=1 -f /docker-entrypoint-initdb.d/08-reservation-reminders.sql
+```
+
+Po pobraniu kodu z Lab 13 uruchom `docker compose up --build -d`: obraz nginx ma nowe limity wysyłania plików, kontener `php` instaluje PHPMailera poleceniem `composer install`, a nowy kontener `cron` zaczyna wykonywać harmonogram.
 
 ## Baza danych (PostgreSQL)
 
@@ -182,6 +196,8 @@ Indeksy poza kluczami głównymi i ograniczeniami `UNIQUE` (PostgreSQL nie tworz
 | `database/04-user-administration.sql` | Lab 11: rola `ADMIN`, kolumna `users.is_blocked`, indeks jednego właściciela i konto demonstracyjne administratora; można go uruchomić ponownie bez szkody |
 | `database/05-tasting-availability.sql` | Lab 8 i 11: widok `tasting_session_availability` (zajęte i wolne miejsca w terminie) oraz terminy demonstracyjne na najbliższe cztery soboty (liczone od bieżącego tygodnia); można go uruchomić ponownie bez szkody |
 | `database/06-login-security.sql` | Lab 12: tabela `failed_logins` (dziennik nieudanych logowań: adres e-mail, IP, powód, przeglądarka, czas; bez haseł) z indeksami pod limit prób; można go uruchomić ponownie bez szkody |
+| `database/07-wine-photos.sql` | Lab 13: kolumna `wines.image_path` (ścieżka zdjęcia względem `public/`, `NULL` = brak zdjęcia) z ograniczeniem CHECK dopuszczającym tylko ścieżki w kształcie `uploads/wines/<32 znaki hex>.jpg|png`; można go uruchomić ponownie bez szkody |
+| `database/08-reservation-reminders.sql` | Lab 13: kolumna `reservations.reminder_sent_at` (kiedy przejęto rezerwację do przypomnienia) i częściowy indeks rezerwacji czekających na przypomnienie; można go uruchomić ponownie bez szkody |
 
 Katalog `database/` jest zamontowany w kontenerze `db` jako `/docker-entrypoint-initdb.d`. PostgreSQL wykonuje te pliki **tylko raz, przy pierwszym starcie z pustym wolumenem** `pg-data`, w kolejności nazw. Jeśli wolumen już istnieje (baza była uruchomiona wcześniej), załaduj schemat ręcznie. Ścieżki wskazują plik wewnątrz kontenera, więc polecenia działają w każdej powłoce:
 
@@ -192,7 +208,7 @@ docker compose exec db psql -U app -d app -v ON_ERROR_STOP=1 \
   -f /docker-entrypoint-initdb.d/03-seed.sql
 ```
 
-Skrypty 01–03 nie są powtarzalne (tworzą tabele), a `04`, `05` i `06` są. Aby zacząć od zera i skasować dane bazy: `docker compose down -v`, a potem `docker compose up -d`.
+Skrypty 01–03 nie są powtarzalne (tworzą tabele), a `04`–`08` są. Aby zacząć od zera i skasować dane bazy: `docker compose down -v`, a potem `docker compose up -d`.
 
 ### Warstwa danych (Lab 8)
 
@@ -300,14 +316,18 @@ my-app/
 │   ├── demo-auth.php        # pokaz uwierzytelniania: rejestracja, logowanie, uprawnienia ról
 │   ├── demo-security.php    # pokaz zabezpieczeń z Lab 12: singleton, limit prób, dziennik nieudanych logowań
 │   ├── demo-repositories.php # pokaz warstwy danych: użytkownicy, Value Object Email, degustacje
-│   └── demo-wines-crud.php  # pokaz operacji CRUD na repozytorium win (DTO WineData)
+│   ├── demo-wines-crud.php  # pokaz operacji CRUD na repozytorium win (DTO WineData)
+│   └── send-tasting-reminders.php # zadanie CRON z Lab 13: przypomnienia o degustacjach (--within, --dry-run)
 ├── config/
-│   ├── content.php          # wszystkie teksty i dane marki (domyślnie Corvo Bianco)
-│   └── database.php         # dane połączenia z bazą (ze zmiennych środowiskowych)
+│   ├── content.php          # wszystkie teksty i dane marki (domyślnie Corvo Bianco), także treść e-maili (klucze mail.*)
+│   ├── database.php         # dane połączenia z bazą (ze zmiennych środowiskowych)
+│   └── mail.php             # ustawienia SMTP i nadawcy (ze zmiennych środowiskowych MAIL_*, APP_URL)
 ├── database/                # skrypty SQL: schemat, indeksy, dane demonstracyjne, administracja użytkownikami (04), widok wolnych miejsc (05)
-├── docker/                  # Dockerfile'e i konfiguracja: nginx (szablon z HTTPS, wspólne nagłówki), php (security.ini, xdebug.ini), db
+├── docker/                  # Dockerfile'e i konfiguracja: nginx (szablon z HTTPS, wspólne nagłówki, limit i zasady dla uploads/), php (security.ini, uploads.ini, xdebug.ini), cron (crontab, start.sh), db
 ├── public/
 │   ├── index.php            # front controller, definicje tras
+│   ├── errors/413.html      # statyczna strona „plik za duży”, serwowana przez nginx (error_page 413)
+│   ├── uploads/wines/       # zdjęcia win wgrane z formularza (poza gitem; w repozytorium tylko .gitkeep)
 │   ├── css/style.css        # design system „Terroir & Heritage Luxe”, tokeny obu motywów
 │   ├── js/theme.js          # przełącznik motywu jasny/ciemny/systemowy
 │   ├── js/app.js            # punkt wejścia JavaScriptu (moduł ES), uruchamia moduły z js/modules/
@@ -316,7 +336,7 @@ my-app/
 │   ├── js/reservations.js   # rezerwacje terminów (Fetch API), ładowany tylko na /tastings
 │   └── views/               # widoki *.html.php (sam element <main>)
 │       ├── layout.html.php  # wspólny szkielet strony, składa head, nagłówek, treść i stopkę
-│       ├── error.html.php   # wspólny widok błędów 400, 401, 403, 404 i 500
+│       ├── error.html.php   # wspólny widok błędów 400, 401, 403, 404 i 500 (400 po złym filtrze win ma dodatkowy link do katalogu)
 │       ├── account.html.php # konto zalogowanego użytkownika
 │       ├── admin-users.html.php # panel użytkowników (szkielet, listę rysuje js/users.js)
 │       ├── wine-form.html.php # formularz dodawania i edycji wina
@@ -330,14 +350,20 @@ my-app/
 │   ├── Repository/          # interfejsy i implementacje dla PostgreSQL (wina, użytkownicy, degustacje) oraz ContentWineRepository (plik)
 │   ├── Service/
 │   │   ├── AuthService.php  # rejestracja i weryfikacja hasła
+│   │   ├── ImageUploader.php # bezpieczny upload zdjęcia: rozmiar, prawdziwy MIME, rozszerzenie, losowa nazwa
+│   │   ├── MailConfig.php   # ustawienia SMTP z config/mail.php
+│   │   ├── MailService.php  # wysyłka e-maili przez PHPMailer (powitanie, przypomnienie o degustacji)
 │   │   ├── PriceFormatter.php # formatowanie kwot z bazy („165 zł”)
 │   │   ├── Session.php      # konfiguracja i uruchomienie sesji, logowanie i niszczenie sesji
 │   │   ├── SiteContent.php  # odczyt tekstów z config/content.php
+│   │   ├── TastingReminderJob.php # logika zadania CRON: przejęcie rezerwacji, wysyłka, ponawianie po błędzie
 │   │   ├── UserAdminService.php # reguły panelu: kto kogo może blokować, usuwać i awansować
 │   │   └── Validator.php    # walidacja danych z formularzy po stronie serwera
 │   └── controllers/         # kontrolery (AppController jako baza z pomocnikami sesji i CSRF, SecurityController, AccountController, AdminController, UserApiController, ReservationApiController, WineManagementController, ErrorController)
 ├── docker-compose.yaml
-├── composer.json
+├── composer.json            # zależność phpmailer/phpmailer i autoloading PSR-4
+├── composer.lock            # dokładne wersje zależności (powstaje przy pierwszym composer install w Dockerze)
+├── .env.example             # wzór konfiguracji; własny .env jest poza gitem
 └── AGENTS.MD                # zasady pracy z asystentem AI
 ```
 
@@ -357,7 +383,7 @@ Wygląd obu motywów opisują zmienne CSS w `public/css/style.css`: motyw jasny 
 | Metoda | Ścieżka | Opis |
 |---|---|---|
 | GET | `/` | Strona główna |
-| GET | `/wines` | Katalog win; opcjonalny filtr `?type=red`, `white`, `rose` albo `sparkling` (inna wartość daje 400) |
+| GET | `/wines` | Katalog win; opcjonalny filtr `?type=red`, `white`, `rose` albo `sparkling` (inna wartość daje 400; strona błędu ma link „Zobacz wszystkie wina”) |
 | GET | `/wines/new` | Formularz nowego wina (`CELLAR_MASTER`, `WINERY_OWNER`); musi być zarejestrowana przed `/wines/{id}` |
 | POST | `/wines` | Zapis nowego wina: błędy wracają do formularza (422), sukces przekierowuje na stronę wina |
 | GET | `/wines/{id}` | Strona wina z opisem, notatkami degustacyjnymi i propozycjami potraw; `id` niebędące dodatnią liczbą daje 400, a nieistniejące wino 404 |
@@ -369,7 +395,7 @@ Wygląd obu motywów opisują zmienne CSS w `public/css/style.css`: motyw jasny 
 | GET | `/login` | Formularz logowania |
 | POST | `/login` | Logowanie: zły token CSRF to 403, błędne pola 422, zły adres lub hasło 422 z ogólnym komunikatem, sukces przekierowuje na `/account` |
 | GET | `/register` | Formularz rejestracji |
-| POST | `/register` | Rejestracja: błędy i zajęty adres wracają do formularza (422), sukces przekierowuje na `/login?registered=1` |
+| POST | `/register` | Rejestracja: błędy formatu wracają do formularza (422); nowy i już zajęty adres kończą się tym samym przekierowaniem na `/login?registered=1&mail=sent` (albo `failed`) i tymi samymi komunikatami |
 | POST | `/logout` | Wylogowanie (token CSRF), przekierowanie na `/login?logged_out=1` |
 | GET | `/account` | Konto zalogowanego użytkownika (bez logowania 401) |
 | GET | `/admin/users` | Panel użytkowników (`ADMIN`, `WINERY_OWNER`); bez logowania 401, z inną rolą 403 |
@@ -460,7 +486,7 @@ Strona `/tastings` nadal jest renderowana po stronie serwera (lista ofert i term
 
 - hasło zapisujemy jako `password_hash(PASSWORD_DEFAULT)`, a sprawdzamy przez `password_verify`; jawnego hasła nie ma nigdzie w bazie ani w logach,
 - nowe konto zawsze dostaje rolę `GUEST`; roli nie da się podać w formularzu,
-- zajęty adres kończy się komunikatem przy polu e-mail; ochrona działa także przy dwóch równoczesnych rejestracjach, bo ostateczną decyzję podejmuje `UNIQUE` w bazie (`EmailAlreadyUsedException`),
+- zajęty adres nie dostaje osobnego komunikatu: formularz odpowiada tak samo dla nowego i zajętego adresu (to samo przekierowanie, te same teksty `login.registered`, `login.mail_sent`, `login.mail_failed`), więc nie da się nim sprawdzać, kto ma konto. Właściciel zajętego adresu dostaje zamiast wiadomości powitalnej wiadomość „Próba rejestracji” (`MailService::sendAccountExistsNotice()`), z informacją, że konto już istnieje, i z prośbą o zignorowanie, jeśli to nie on. Konto nie jest zakładane ponownie ani zmieniane, a hasło z drugiej rejestracji jest odrzucane. Ostateczną decyzję, że adres jest zajęty, podejmuje `UNIQUE` w bazie (`EmailAlreadyUsedException`), więc ochrona działa także przy dwóch równoczesnych rejestracjach. Skrót hasła powstaje przed zapisem w obu przypadkach, więc czas odpowiedzi nie zdradza wyniku,
 - zły adres i złe hasło dają ten sam komunikat „Nieprawidłowy e-mail lub hasło.”, a przy nieistniejącym koncie i tak liczony jest skrót, żeby czas odpowiedzi nie zdradzał, czy konto istnieje,
 - po zalogowaniu `session_regenerate_id(true)` wymienia id sesji (ochrona przed session fixation), a stare id przestaje działać.
 
@@ -524,7 +550,7 @@ Lab 12 to „Security Bingo”: 25 punktów (A1–E5), a przy każdym ma być do
 | A3 | Hasła nie trafiają do logów ani komunikatów błędów | `LoginThrottle::recordFailure()` nie przyjmuje hasła; `zend.exception_ignore_args` w `docker/php/security.ini` i `public/index.php` | Po nieudanym logowaniu `docker compose logs php` zawiera linię `[security]` bez hasła; strony błędów nie wypisują danych z formularza |
 | A4 | Limit prób logowania i blokada czasowa | `LoginThrottle`, `SecurityController::authenticate()` | 6 błędnych logowań na to samo konto daje 429 i `Retry-After`; `bin/demo-security.php`, sekcja A4 |
 | A5 | Sensowne kody HTTP | `ErrorController`, wyjątki `BadRequestException`, `UnauthorizedException`, `ForbiddenException` | `/wines/abc` to 400, `/account` bez logowania 401, POST bez tokenu CSRF 403, nieznany adres 404, błędne dane formularza 422, zbyt wiele prób 429 |
-| B1 | Nie zdradzam, czy e-mail istnieje w bazie | `AuthService::authenticate()`: jeden wynik `null` dla złego adresu i hasła, `password_verify` na skrócie zapasowym wyrównuje czas | Nieistniejący adres i złe hasło dają ten sam komunikat „Nieprawidłowy e-mail lub hasło.” |
+| B1 | Nie zdradzam, czy e-mail istnieje w bazie | `AuthService::authenticate()`: jeden wynik `null` dla złego adresu i hasła, `password_verify` na skrócie zapasowym wyrównuje czas; `SecurityController::createAccount()`: ta sama odpowiedź dla nowego i zajętego adresu | Nieistniejący adres i złe hasło dają ten sam komunikat „Nieprawidłowy e-mail lub hasło.”; rejestracja zajętego adresu daje to samo przekierowanie i te same teksty co nowego (różnica jest tylko w skrzynce właściciela adresu) |
 | B2 | Token CSRF w formularzu logowania | `SecurityController::authenticate()` zaczyna od `requireValidCsrf()`; ukryte pole `csrf_token` w widoku | POST `/login` bez tokenu albo z błędnym to 403 |
 | B3 | Regeneracja ID sesji po poprawnym logowaniu | `Session::signIn()`: `session_regenerate_id(true)`; `session.use_strict_mode` odrzuca id wymyślone przez klienta | Wartość `PHPSESSID` przed i po zalogowaniu jest inna, stare id przestaje działać |
 | B4 | Walidacja złożoności hasła | `SecurityController::REGISTER_RULES` (8–64 znaków, litera i cyfra, znak specjalny, do 72 bajtów) w `Validator` | Rejestracja z hasłem `abc` kończy się 422 z komunikatami przy polu |
@@ -532,7 +558,7 @@ Lab 12 to „Security Bingo”: 25 punktów (A1–E5), a przy każdym ma być do
 | C1 | Walidacja formatu e-mail po stronie serwera | reguła `email` w `Validator` oraz Value Object `Email` | Adres `to-nie-jest-email` daje 422 także po wyłączeniu JavaScriptu |
 | C2 | Token CSRF w formularzu rejestracji | `SecurityController::createAccount()`, `requireValidCsrf()` | POST `/register` bez tokenu to 403 |
 | C3 | Cookie sesyjne z flagą HttpOnly | `Session::start()`: `'httponly' => true` | W narzędziach przeglądarki (Application → Cookies) `PHPSESSID` ma `HttpOnly`; `document.cookie` go nie pokazuje |
-| C4 | Sprawdzenie, czy e-mail jest już w bazie przy rejestracji | `PostgresUserRepository::create()`: `UNIQUE` w bazie i `EmailAlreadyUsedException`, komunikat przy polu e-mail | Druga rejestracja tego samego adresu daje 422 „Konto z tym adresem e-mail już istnieje.”; sprawdzenie w bazie (a nie `SELECT` przed `INSERT`) działa też przy dwóch równoległych żądaniach |
+| C4 | Sprawdzenie, czy e-mail jest już w bazie przy rejestracji | `PostgresUserRepository::create()`: `UNIQUE` w bazie i `EmailAlreadyUsedException`, komunikat przy polu e-mail | Druga rejestracja tego samego adresu nie zakłada drugiego konta (jedno konto w `users`), kończy się tym samym przekierowaniem co pierwsza, a w Mailpit pojawia się wiadomość „Próba rejestracji w Corvo Bianco” do właściciela adresu; sprawdzenie w bazie (a nie `SELECT` przed `INSERT`) działa też przy dwóch równoległych żądaniach |
 | C5 | Pobieranie z bazy minimalnego zestawu danych o użytkowniku | `PostgresUserRepository::SELECT` (bez `password_hash`) i `SELECT_WITH_HASH` tylko dla `findByEmail()` i `create()` | `bin/demo-security.php`, sekcja C5: `findById` zwraca pusty skrót |
 | D1 | UserRepository jako singleton | `PostgresUserRepository::instance()`, `Database::shared()`, `AppController::users()` | `bin/demo-security.php`, sekcja D1: ten sam obiekt i zero nowych połączeń |
 | D2 | Ograniczona długość danych wejściowych | `EMAIL_MAX_LENGTH` (254), `PASSWORD_MAX_LENGTH` (64) i `PASSWORD_MAX_BYTES` (72) w `SecurityController`; `VARCHAR` w bazie | E-mail dłuższy niż 254 znaków albo hasło dłuższe niż 64 daje 422 |
@@ -552,6 +578,83 @@ Lab 12 to „Security Bingo”: 25 punktów (A1–E5), a przy każdym ma być do
 - Dziennik `failed_logins` rośnie bez końca; porządkowanie starych wpisów (np. po 90 dniach) to możliwe usprawnienie.
 - Logowanie nie ma jeszcze wygasania sesji po bezczynności ani uwierzytelniania dwuskładnikowego.
 
+## Poczta, upload i CRON (Lab 13)
+
+Lab 13 dodaje trzy rzeczy: wysyłkę e-maili (PHPMailer i Mailpit), bezpieczny upload zdjęć win oraz zadanie cykliczne (CRON) z przypomnieniami o degustacjach. Cała konfiguracja jest w zmiennych środowiskowych z pliku `.env` (wzór: `.env.example`), a w kodzie nie ma żadnych haseł ani adresów serwerów.
+
+### Konfiguracja w .env
+
+| Zmienna | Znaczenie | Wartość lokalnie |
+|---|---|---|
+| `MAIL_HOST`, `MAIL_PORT` | serwer SMTP | `mailpit`, `1025` |
+| `MAIL_USERNAME`, `MAIL_PASSWORD` | logowanie do SMTP (puste = bez logowania) | puste |
+| `MAIL_ENCRYPTION` | `tls` (STARTTLS), `ssl` (SMTPS) albo puste | puste |
+| `MAIL_FROM`, `MAIL_FROM_NAME` | nadawca wiadomości | `noreply@corvobianco.local`, `Corvo Bianco` |
+| `APP_URL` | adres aplikacji w linkach z e-maili | `https://localhost:8443` |
+| `MAILPIT_PORT` | port panelu Mailpit | `8025` |
+
+`docker-compose.yaml` przekazuje te zmienne kontenerom `php` i `cron` (wspólny blok `x-app-environment`), a `config/mail.php` czyta je przez `getenv()`. `.env` jest w `.gitignore`, w repozytorium jest tylko `.env.example`. Na prawdziwym serwerze SMTP wystarczy zmienić wartości w `.env`, kod się nie zmienia.
+
+### E-mail po rejestracji (PHPMailer, Mailpit)
+
+Po założeniu konta `SecurityController` woła `MailService::sendWelcomeEmail()` i przekierowuje na `/login?registered=1&mail=sent` albo `&mail=failed`. `MailService` używa PHPMailera przez SMTP (`isSMTP()`), wysyła wiadomość w HTML z wersją tekstową (`AltBody`), w UTF-8, z limitem czasu połączenia 5 sekund, żeby niedostępny serwer nie wieszał żądania. Teksty e-maili są w `config/content.php` (klucze `mail.*`), a wartości z zewnątrz (imię, adres) są escapowane w HTML, a z imienia usuwane są znaki końca linii (wstrzykiwanie nagłówków).
+
+Obsługa błędów: każdy błąd wysyłki (serwer niedostępny, zły adres odbiorcy, brak biblioteki) kończy się wyjątkiem `MailException`, który kontroler łapie. Konto zostaje założone, szczegóły błędu trafiają tylko do logu (`docker compose logs php`), a użytkownik widzi ostrzeżenie „Nie udało się wysłać wiadomości na podany adres. Jeśli to nowy adres, konto mimo to działa i możesz się zalogować.” (to samo ostrzeżenie dostaje właściciel zajętego adresu, więc ostrzeżenie też niczego nie zdradza). Surowy komunikat SMTP nigdy nie trafia na stronę, a wartość `mail=` z adresu jest przyjmowana tylko z listy `sent` i `failed`.
+
+Jak sprawdzić:
+
+1. Zarejestruj konto na https://localhost:8443/register i otwórz http://localhost:8025: wiadomość „Witaj w Corvo Bianco” jest w skrzynce.
+2. `docker compose stop mailpit`, zarejestruj kolejne konto: po przekierowaniu widać ostrzeżenie, a konto da się zalogować. `docker compose start mailpit` przywraca pocztę.
+
+### Upload zdjęcia wina
+
+Formularz wina (`/wines/new`, `/wines/{id}/edit`) ma pole pliku (`enctype="multipart/form-data"`, `accept="image/jpeg,image/png"`) i, przy edycji, podgląd aktualnego zdjęcia z polem „Usuń zdjęcie”. Zdjęcie widać na karcie wina i na stronie szczegółów (z `alt` równym nazwie wina); wina bez zdjęcia nadal pokazują ilustrację butelki. Serwer nie ufa niczemu, co przysłał klient. `ImageUploader` sprawdza po kolei:
+
+| Kontrola | Jak działa |
+|---|---|
+| Rozmiar | najwyżej 2 MB (`filesize` na pliku tymczasowym); nginx (`client_max_body_size 3m`) i PHP (`docker/php/uploads.ini`: `upload_max_filesize=3M`, `post_max_size=4M`) odcinają większe żądania jeszcze wcześniej. Plik 2–3 MB dociera do aplikacji i dostaje komunikat przy polu (422), a powyżej 3 MB nginx odpowiada 413 zanim uruchomi się PHP, więc stronę błędu serwuje sam nginx (`error_page 413`, statyczny `public/errors/413.html` w wyglądzie aplikacji; bezpośrednie wejście na ten adres daje 404 dzięki `internal`) |
+| Prawdziwy typ MIME | `finfo` czyta zawartość pliku; dozwolone tylko `image/jpeg` i `image/png`, nagłówek `Content-Type` z żądania jest ignorowany |
+| Rozszerzenie | z nazwy od użytkownika; dozwolone `jpg`, `jpeg`, `png` i zgodne z typem z zawartości (plik JPEG nazwany `.png` jest odrzucany, tak samo `.php.jpg` i plik bez rozszerzenia) |
+| Plik jest obrazem | `getimagesize` musi odczytać plik jako obraz tego samego typu; wymiary do 6000 px na bok i 24 mln pikseli (ochrona przed „bombą dekompresyjną”) |
+| Plik z tego żądania | `is_uploaded_file`, kod błędu PHP; pole `photo[]` zamiast pliku jest odrzucane |
+
+Zapisany plik dostaje losową nazwę (`bin2hex(random_bytes(16))` i rozszerzenie z typu z zawartości, np. `uploads/wines/3f9a….jpg`), prawa `0644` i trafia do `public/uploads/wines/`. Nazwa od użytkownika nigdy nie trafia na dysk. W bazie jest tylko ścieżka względna (kolumna `wines.image_path`, ograniczenie CHECK przyjmuje wyłącznie ten kształt). Błąd pliku wraca do formularza razem z błędami pól (422), z komunikatem po polsku przy polu i wpisanymi wartościami. Plik jest zapisywany przed wpisem do bazy, a gdy zapis się nie uda (np. duplikat nazwy), plik jest kasowany, więc nie zostają osierocone pliki. Podmiana, usunięcie zdjęcia i usunięcie wina kasują stary plik z dysku.
+
+Pliki z `uploads/` serwuje wyłącznie nginx jako statyczne (`location ^~ /uploads/ { try_files $uri =404; }` ma pierwszeństwo przed regułą `\.php$`), więc nawet plik z kodem PHP przemycony do tego katalogu nie zostałby wykonany, a nagłówek `X-Content-Type-Options: nosniff` blokuje zgadywanie typu przez przeglądarkę. Zdjęcia nie trafiają do gita (`.gitignore`, w repozytorium jest `.gitkeep`). Kontener `php` przy starcie nadaje `www-data` prawa do zapisu w `public/uploads`.
+
+### Zadanie CRON i wysyłka e-mail
+
+**Po co.** Gość rezerwuje degustację z wyprzedzeniem, więc łatwo zapomnieć o terminie. Zadanie przypomina e-mailem o rezerwacji, która zaczyna się w ciągu najbliższych 24 godzin. To zadanie cykliczne z natury: musi sprawdzać nadchodzące terminy regularnie, a nie w reakcji na żądanie użytkownika.
+
+**Harmonogram.** `docker/cron/crontab`: `0 * * * * . /etc/cron.env; cd /app && php bin/send-tasting-reminders.php >> /proc/1/fd/1 2>&1`, czyli co godzinę, o pełnej godzinie. Okno 24 godzin i godzinowy rytm sprawiają, że każda rezerwacja dostaje przypomnienie najwyżej raz, między 24 a 23 godzinami przed terminem. Zadanie uruchamia osobny kontener `cron` (ten sam obraz PHP, `crond` z busybox). Plik `docker/cron/start.sh` instaluje harmonogram (po usunięciu znaków CR z Windows) i zapisuje zmienne środowiskowe do `/etc/cron.env`, bo `crond` uruchamia zadania z pustym środowiskiem i bez tego skrypt nie znałby ustawień bazy ani poczty.
+
+**Co robi skrypt.** `bin/send-tasting-reminders.php` składa `TastingReminderJob`: pobiera potwierdzone, jeszcze nieprzypomniane rezerwacje terminów z okna czasowego, **przejmuje** każdą w bazie (`UPDATE … SET reminder_sent_at … WHERE reminder_sent_at IS NULL`), wysyła e-mail przez `MailService` (data w czasie lokalnym winnicy, liczba miejsc, link do aplikacji) i wypisuje jedną linię podsumowania. Opcje: `--within=GODZINY` (domyślnie 24, od 1 do 168) i `--dry-run` (tylko liczy, niczego nie wysyła ani nie zmienia). Kod wyjścia: `0` wykonano, `1` któraś wiadomość się nie wysłała, `2` błędne argumenty lub brak bazy.
+
+**Wynik i log.** Każde uruchomienie pisze do logu kontenera jedną linię, np. `[2026-11-28 13:00:01 UTC] reminders: window=24h due=3 sent=3 failed=0 skipped=0` (`due` znalezione, `sent` wysłane, `failed` błąd wysyłki, `skipped` przejęte przez inny proces lub anulowane w międzyczasie). Podgląd: `docker compose logs cron`; wiadomości widać w Mailpit.
+
+**Bezpieczne przy powtórzeniu.** Kolumna `reservations.reminder_sent_at` działa jak zamek: rezerwację można przejąć tylko raz, a `UPDATE` w jednym zapytaniu sprawdza i zapisuje, więc drugie uruchomienie (np. ręczne tuż po godzinnym) oraz dwa równoległe procesy nie wyślą drugiej wiadomości o tej samej rezerwacji. Gdy wysyłka się nie uda (np. chwilowa awaria SMTP), przejęcie jest cofane i następne uruchomienie spróbuje ponownie, a jedna zepsuta wiadomość nie blokuje pozostałych. Ponowne zarezerwowanie anulowanego terminu zeruje kolumnę, więc nowa rezerwacja też dostaje przypomnienie.
+
+**Jak przetestować.** Wygodnie jest wywołać skrypt ręcznie, zamiast czekać do pełnej godziny. Najpierw dodaj degustację zaczynającą się za 3 godziny wraz z rezerwacją konta demonstracyjnego:
+
+```bash
+docker compose exec db psql -U app -d app -c "WITH s AS (INSERT INTO tasting_sessions (tasting_id, starts_at, seats_total) SELECT id, now() + interval '3 hours', 10 FROM tastings ORDER BY id LIMIT 1 RETURNING id) INSERT INTO reservations (user_id, session_id, seats) SELECT u.id, s.id, 2 FROM users u, s WHERE u.email = 'gosc@corvo-bianco.example'"
+docker compose exec php php bin/send-tasting-reminders.php --dry-run   # due=1 sent=0
+docker compose exec php php bin/send-tasting-reminders.php             # due=1 sent=1, wiadomość w Mailpit
+docker compose exec php php bin/send-tasting-reminders.php             # due=0 sent=0: powtórzenie niczego nie wysyła
+docker compose logs --tail 5 cron                                       # wpisy kolejnych godzin
+```
+
+Sprzątanie po teście: `docker compose exec db psql -U app -d app -c "DELETE FROM reservations WHERE session_id IN (SELECT id FROM tasting_sessions WHERE seats_total = 10 AND starts_at < now() + interval '4 hours' AND starts_at > now())" -c "DELETE FROM tasting_sessions WHERE seats_total = 10 AND starts_at < now() + interval '4 hours' AND starts_at > now()"`. Że kontener `cron` działa i ma harmonogram: `docker compose exec cron crontab -l`.
+
+### Dowody do kryteriów
+
+| Kryterium | Dowód |
+|---|---|
+| CRON | uzasadnione zadanie cykliczne, harmonogram w `docker/cron/crontab`, polecenie `bin/send-tasting-reminders.php`, sposób testowania i log wykonania (`docker compose logs cron`), bezpieczne powtórzenie (`reminder_sent_at`) |
+| PHP Mailer | PHPMailer przez SMTP w `MailService`, konfiguracja ze zmiennych środowiskowych (`config/mail.php`), błędy obsłużone (`MailException`, ostrzeżenie zamiast awarii), lokalnie Mailpit |
+| Upload | limit 2 MB, prawdziwy MIME, dozwolone rozszerzenia, losowa nazwa, zapis w `public/uploads/wines/`, w bazie tylko ścieżka (`ImageUploader`, `database/07-wine-photos.sql`) |
+| .env | `.env.example` w repozytorium, `.env` w `.gitignore`, hasła i adresy serwerów tylko w zmiennych środowiskowych |
+
 ## Zmiana tekstów i marki
 
 Nazwa winnicy, hasło, nazwa platformy, nawigacja i teksty interfejsu są w `config/content.php`. W tekstach można używać znaczników w stylu `{site.name}`, które są podstawiane z konfiguracji. Wina i degustacje (nazwy, opisy, ceny, terminy) pochodzą z bazy, czyli z `database/03-seed.sql`. Aby przygotować serwis dla innej winnicy, trzeba podmienić oba pliki; docelowo edycję przejmie panel administratora.
@@ -561,7 +664,7 @@ Nazwa winnicy, hasło, nazwa platformy, nawigacja i teksty interfejsu są w `con
 - Osobny branch dla każdego większego zakresu prac / nowej funkcjonalności, a w nim małe, logiczne commity.
 - Małe, logiczne commity (format `feat:`, `fix:`, `docs:`, `chore:`).
 - Mobile-first, jeden breakpoint desktopowy (`min-width: 64rem`).
-- Sekrety wyłącznie w `.env`.
+- Sekrety wyłącznie w `.env` (wzór: `.env.example`).
 - Szczegółowe zasady dla asystenta AI: `AGENTS.MD`.
 
 ## Autorzy

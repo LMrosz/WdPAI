@@ -6,3 +6,7 @@ vendor/
 node_modules/
 docker/data/
 /vendor/
+
+# zdjęcia win wgrane przez formularz (Lab 13); sam katalog zostaje w repozytorium dzięki .gitkeep
+/public/uploads/wines/*
+!/public/uploads/wines/.gitkeep

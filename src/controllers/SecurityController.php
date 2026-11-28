@@ -7,10 +7,12 @@ namespace App\Controller;
 use App\Database;
 use App\Exception\AccountBlockedException;
 use App\Exception\EmailAlreadyUsedException;
+use App\Exception\MailException;
 use App\Repository\FailedLoginRepositoryInterface;
 use App\Repository\PostgresFailedLoginRepository;
 use App\Service\AuthService;
 use App\Service\LoginThrottle;
+use App\Service\MailService;
 use App\Service\Session;
 use App\Service\Validator;
 
@@ -47,6 +49,13 @@ final class SecurityController extends AppController
 
     private ?AuthService $auth = null;
     private ?LoginThrottle $throttle = null;
+    private ?MailService $mail;
+
+    /** Serwis poczty można podać z zewnątrz (testy); bez niego powstaje dopiero przy pierwszej wysyłce. */
+    public function __construct(?MailService $mail = null)
+    {
+        $this->mail = $mail;
+    }
 
     /** GET /login – formularz logowania (GUEST, CELLAR_MASTER, WINERY_OWNER). */
     public function login(): void
@@ -131,8 +140,11 @@ final class SecurityController extends AppController
 
     /**
      * POST /register – obsługa formularza.
-     * Błędy wracają do formularza z kodem 422. Poprawne dane zakładają konto gościa z hasłem
+     * Błędy formatu wracają do formularza z kodem 422. Poprawne dane zakładają konto gościa z hasłem
      * zapisanym jako skrót i kończą się przekierowaniem (303) na stronę logowania.
+     * Odpowiedź jest taka sama dla nowego i już zajętego adresu (to samo przekierowanie i te same
+     * komunikaty), żeby formularz nie służył do sprawdzania, kto ma konto. Zajęty adres dostaje
+     * zamiast wiadomości powitalnej wiadomość o próbie rejestracji; konta nie zakładamy ponownie.
      */
     public function createAccount(): void
     {
@@ -155,16 +167,16 @@ final class SecurityController extends AppController
         }
 
         try {
-            $this->auth()->register($email, $this->postString('password'));
+            $user = $this->auth()->register($email, $this->postString('password'));
+            $sent = $this->sendWelcomeEmail($user->email->value(), $user->label());
         } catch (EmailAlreadyUsedException) {
-            // także gdy dwa żądania z tym samym adresem trafią do bazy równocześnie (UNIQUE w bazie)
-            http_response_code(422);
-            $this->renderRegister(['email' => $this->text('register.email_taken')], ['email' => $email]);
-
-            return;
+            // także gdy dwa żądania z tym samym adresem trafią do bazy równocześnie (UNIQUE w bazie);
+            // skrót hasła powstał już w register(), więc oba przypadki trwają podobnie długo
+            $sent = $this->sendAccountExistsNotice($email);
         }
 
-        $this->redirect('/login?registered=1');
+        // konto już istnieje, więc ewentualna awaria poczty niczego nie cofa: użytkownik dostaje tylko ostrzeżenie
+        $this->redirect('/login?registered=1&mail=' . ($sent ? 'sent' : 'failed'));
     }
 
     /**
@@ -180,6 +192,37 @@ final class SecurityController extends AppController
 
         // sesja nie istnieje, więc komunikat przechodzi w adresie (jak ?registered=1)
         $this->redirect('/login?logged_out=1');
+    }
+
+    /**
+     * Wysyła wiadomość powitalną. Zwraca false, gdy się nie udało; szczegóły błędu SMTP trafiają
+     * tylko do dziennika serwera, nigdy do użytkownika.
+     */
+    private function sendWelcomeEmail(string $email, string $name): bool
+    {
+        try {
+            ($this->mail ??= MailService::create())->sendWelcomeEmail($email, $name);
+
+            return true;
+        } catch (MailException $exception) {
+            error_log('Welcome e-mail failed: ' . $exception->getMessage());
+
+            return false;
+        }
+    }
+
+    /** Powiadomienie dla właściciela zajętego adresu; tak jak wiadomość powitalna zwraca false przy awarii poczty. */
+    private function sendAccountExistsNotice(string $email): bool
+    {
+        try {
+            ($this->mail ??= MailService::create())->sendAccountExistsNotice($email);
+
+            return true;
+        } catch (MailException $exception) {
+            error_log('Account-exists e-mail failed: ' . $exception->getMessage());
+
+            return false;
+        }
     }
 
     /** Serwis ograniczający próby logowania powstaje przy pierwszym użyciu, na wspólnym połączeniu z bazą. */
@@ -234,6 +277,8 @@ final class SecurityController extends AppController
             'old' => $old,
             'formError' => $formError,
             'registered' => ($_GET['registered'] ?? null) === '1',
+            // tylko wartości z zamkniętej listy; cokolwiek innego w adresie jest ignorowane
+            'mailStatus' => in_array($_GET['mail'] ?? null, ['sent', 'failed'], true) ? $_GET['mail'] : null,
             'loggedOut' => ($_GET['logged_out'] ?? null) === '1',
         ], true);
     }

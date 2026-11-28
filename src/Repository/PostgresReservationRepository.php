@@ -133,10 +133,11 @@ final class PostgresReservationRepository implements ReservationRepositoryInterf
         }
 
         if ($existing !== false) {
-            // użytkownik anulował wcześniej tę rezerwację, a UNIQUE (user_id, session_id) pozwala na jeden wiersz
+            // użytkownik anulował wcześniej tę rezerwację, a UNIQUE (user_id, session_id) pozwala na jeden wiersz;
+            // to nowa rezerwacja, więc przypomnienie o terminie ma znów być wysłane (reminder_sent_at = NULL)
             $statement = $this->database->prepare(
                 "UPDATE reservations SET seats = :seats, status = 'confirmed', created_at = CURRENT_TIMESTAMP,
-                        updated_at = CURRENT_TIMESTAMP
+                        updated_at = CURRENT_TIMESTAMP, reminder_sent_at = NULL
                  WHERE id = :id
                  RETURNING " . self::COLUMNS
             );

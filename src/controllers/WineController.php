@@ -71,7 +71,7 @@ final class WineController extends AppController
         $type = $_GET['type'];
 
         if (!is_string($type) || !in_array($type, Wine::CATEGORIES, true)) {
-            throw new BadRequestException('Unknown wine type filter');
+            throw new BadRequestException('Unknown wine type filter', '/wines');
         }
 
         return $type;

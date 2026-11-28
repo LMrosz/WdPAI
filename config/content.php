@@ -92,6 +92,7 @@ return [
             'group_description' => 'Opis',
             'group_tasting' => 'Degustacja i podawanie',
             'group_pairings' => 'Do potraw',
+            'group_photo' => 'Zdjęcie',
             'name' => 'Nazwa wina',
             'category' => 'Kategoria',
             'type' => 'Rodzaj',
@@ -115,6 +116,17 @@ return [
             'pairings_hint' => 'Jedna potrawa w wierszu.',
             'pairings_error' => 'Podaj najwyżej {max} potraw, każda do {length} znaków.',
             'duplicate' => 'Wino o tej nazwie i roczniku już jest w katalogu.',
+            'photo' => 'Zdjęcie butelki',
+            'photo_hint' => 'Plik JPG lub PNG, do {max} MB. Bez zdjęcia pokażemy ilustrację butelki.',
+            'photo_current' => 'Aktualne zdjęcie',
+            'photo_remove' => 'Usuń zdjęcie (wróci ilustracja butelki)',
+            'photo_errors' => [
+                'too_large' => 'Zdjęcie jest za duże. Wybierz plik do {max} MB.',
+                'invalid_type' => 'To nie jest zdjęcie JPG ani PNG. Wybierz inny plik.',
+                'invalid_extension' => 'Nazwa pliku musi kończyć się na .jpg, .jpeg lub .png i zgadzać się z jego zawartością.',
+                'invalid_image' => 'Nie udało się odczytać zdjęcia albo ma zbyt duże wymiary. Wybierz inny plik.',
+                'upload_failed' => 'Nie udało się wysłać zdjęcia. Spróbuj ponownie.',
+            ],
         ],
         'detail' => [
             'page_title' => '{wine} — {site.name}',
@@ -371,7 +383,10 @@ return [
         'email' => 'Adres e-mail',
         'password' => 'Hasło',
         'submit' => 'Zaloguj się',
-        'registered' => 'Konto zostało założone. Zaloguj się, aby z niego korzystać.',
+        // Te trzy komunikaty są wspólne dla nowego i już zajętego adresu: strona nie zdradza, czy konto istniało.
+        'registered' => 'Rejestracja przyjęta. Jeśli to nowy adres, konto jest gotowe i możesz się zalogować.',
+        'mail_sent' => 'Wysłaliśmy wiadomość na podany adres e-mail.',
+        'mail_failed' => 'Nie udało się wysłać wiadomości na podany adres. Jeśli to nowy adres, konto mimo to działa i możesz się zalogować.',
         'logged_out' => 'Wylogowano. Do zobaczenia w winnicy!',
         'invalid_credentials' => 'Nieprawidłowy e-mail lub hasło.',
         'account_blocked' => 'To konto zostało zablokowane przez administratora. Skontaktuj się z winnicą.',
@@ -390,11 +405,35 @@ return [
         'password' => 'Hasło',
         'password_hint' => 'Co najmniej {min} znaków, w tym litera, cyfra i znak specjalny.',
         'password_confirmation' => 'Powtórz hasło',
-        'email_taken' => 'Konto z tym adresem e-mail już istnieje.',
         'submit' => 'Utwórz konto',
         'have_account' => 'Masz już konto?',
         'login_link' => 'Zaloguj się',
         'back' => 'Wróć na stronę główną',
+    ],
+
+    'mail' => [
+        'signature' => 'Do zobaczenia w winnicy, zespół {site.name}',
+        'welcome' => [
+            'subject' => 'Witaj w {site.name}',
+            'greeting' => 'Witaj, {name}!',
+            'text' => 'Twoje konto zostało założone. Możesz teraz rezerwować degustacje i wracać do ulubionych win.',
+            'button' => 'Zobacz degustacje',
+        ],
+        // Wysyłana na adres, który już ma konto, gdy ktoś próbuje zarejestrować go ponownie.
+        'account_exists' => [
+            'subject' => 'Próba rejestracji w {site.name}',
+            'greeting' => 'Dzień dobry,',
+            'text' => 'Ktoś próbował założyć konto w {site.name} na ten adres e-mail, ale konto już istnieje. Jeśli to Ty, po prostu zaloguj się na swoje konto.',
+            'ignore_hint' => 'Jeśli to nie Ty, zignoruj tę wiadomość: nic się nie zmieniło, a Twoje hasło pozostaje bez zmian.',
+            'button' => 'Zaloguj się',
+        ],
+        'reminder' => [
+            'subject' => 'Przypomnienie: {tasting}, {date}',
+            'greeting' => 'Cześć, {name}!',
+            'text' => 'Przypominamy o degustacji „{tasting}”, która odbędzie się {date}. Zarezerwowane miejsca: {seats}.',
+            'cancel_hint' => 'Jeśli plany się zmieniły, anuluj rezerwację na swoim koncie, żeby miejsce mogli zająć inni.',
+            'button' => 'Moje rezerwacje',
+        ],
     ],
 
     'account' => [
@@ -545,6 +584,10 @@ return [
             'title' => '400',
             'text' => 'Nie rozumiemy tego żądania. Sprawdź adres i spróbuj ponownie.',
             'back' => 'Wróć na stronę główną',
+            // dodatkowy, pierwszy link, gdy wiemy, dokąd użytkownik wróci do poprawnej wersji strony (klucz = ścieżka)
+            'return' => [
+                '/wines' => 'Zobacz wszystkie wina',
+            ],
         ],
         'unauthorized' => [
             'page_title' => 'Wymagane logowanie — {site.name}',
