@@ -1,0 +1,44 @@
+<!doctype html>
+<html lang="pl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Plik jest za duży — Corvo Bianco</title>
+    <script>
+        // Ten sam motyw co w aplikacji (wybór użytkownika albo ustawienie systemu), ustawiany przed pierwszym renderem.
+        (function () {
+            var theme = null;
+            try { theme = localStorage.getItem('theme'); } catch (error) {}
+            if (theme !== 'light' && theme !== 'dark') {
+                theme = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+            }
+            document.documentElement.dataset.theme = theme;
+        })();
+    </script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@500;600&amp;family=Plus+Jakarta+Sans:wght@400;500;600&amp;display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+    <!--
+        Strona błędu 413 serwowana przez nginx (error_page w docker/nginx/app-common.conf). Nginx odrzuca zbyt duże żądanie
+        zanim trafi ono do PHP, więc strony nie może narysować aplikacja i jest ona statyczna. Wygląda jak strona błędu
+        aplikacji (views/error.html.php), a limit w tekście odpowiada ImageUploader (2 MB).
+    -->
+    <header class="site-header">
+        <div class="page actions">
+            <p class="brand"><a href="/">Corvo Bianco</a> <small>winnica w księstwie Toussaint</small></p>
+        </div>
+    </header>
+
+    <main class="page auth">
+        <section class="auth-card" aria-labelledby="error-title">
+            <h1 id="error-title">413</h1>
+            <p>Wysłany plik jest za duży. Zdjęcie butelki może mieć najwyżej 2 MB w formacie JPG lub PNG. Wybierz mniejszy plik i spróbuj ponownie. Dane wpisane w formularzu nie zostały zapisane.</p>
+            <p class="auth-back"><a href="/wines">Wróć do katalogu win</a></p>
+            <p class="auth-back"><a href="/">Wróć na stronę główną</a></p>
+        </section>
+    </main>
+</body>
+</html>
