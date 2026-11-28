@@ -65,6 +65,30 @@ final class MailService
     }
 
     /**
+     * Wiadomość dla właściciela adresu, który już ma konto, gdy ktoś próbuje zarejestrować go ponownie.
+     * Dzięki niej formularz rejestracji odpowiada tak samo dla nowego i zajętego adresu, a prawdziwy
+     * właściciel i tak dowiaduje się o próbie.
+     *
+     * @throws MailException gdy wysyłka się nie powiodła
+     */
+    public function sendAccountExistsNotice(string $to): void
+    {
+        $link = $this->link('/login');
+
+        $this->deliver(
+            $to,
+            '',
+            $this->content->text('mail.account_exists.subject'),
+            $this->content->text('mail.account_exists.greeting'),
+            [
+                $this->content->text('mail.account_exists.text'),
+                $this->content->text('mail.account_exists.ignore_hint'),
+            ],
+            $link === '' ? null : [$this->content->text('mail.account_exists.button'), $link],
+        );
+    }
+
+    /**
      * Przypomnienie o zbliżającej się degustacji.
      *
      * @throws MailException gdy wysyłka się nie powiodła

@@ -140,8 +140,11 @@ final class SecurityController extends AppController
 
     /**
      * POST /register – obsługa formularza.
-     * Błędy wracają do formularza z kodem 422. Poprawne dane zakładają konto gościa z hasłem
+     * Błędy formatu wracają do formularza z kodem 422. Poprawne dane zakładają konto gościa z hasłem
      * zapisanym jako skrót i kończą się przekierowaniem (303) na stronę logowania.
+     * Odpowiedź jest taka sama dla nowego i już zajętego adresu (to samo przekierowanie i te same
+     * komunikaty), żeby formularz nie służył do sprawdzania, kto ma konto. Zajęty adres dostaje
+     * zamiast wiadomości powitalnej wiadomość o próbie rejestracji; konta nie zakładamy ponownie.
      */
     public function createAccount(): void
     {
@@ -165,16 +168,15 @@ final class SecurityController extends AppController
 
         try {
             $user = $this->auth()->register($email, $this->postString('password'));
+            $sent = $this->sendWelcomeEmail($user->email->value(), $user->label());
         } catch (EmailAlreadyUsedException) {
-            // także gdy dwa żądania z tym samym adresem trafią do bazy równocześnie (UNIQUE w bazie)
-            http_response_code(422);
-            $this->renderRegister(['email' => $this->text('register.email_taken')], ['email' => $email]);
-
-            return;
+            // także gdy dwa żądania z tym samym adresem trafią do bazy równocześnie (UNIQUE w bazie);
+            // skrót hasła powstał już w register(), więc oba przypadki trwają podobnie długo
+            $sent = $this->sendAccountExistsNotice($email);
         }
 
         // konto już istnieje, więc ewentualna awaria poczty niczego nie cofa: użytkownik dostaje tylko ostrzeżenie
-        $this->redirect('/login?registered=1&mail=' . ($this->sendWelcomeEmail($user->email->value(), $user->label()) ? 'sent' : 'failed'));
+        $this->redirect('/login?registered=1&mail=' . ($sent ? 'sent' : 'failed'));
     }
 
     /**
@@ -204,6 +206,20 @@ final class SecurityController extends AppController
             return true;
         } catch (MailException $exception) {
             error_log('Welcome e-mail failed: ' . $exception->getMessage());
+
+            return false;
+        }
+    }
+
+    /** Powiadomienie dla właściciela zajętego adresu; tak jak wiadomość powitalna zwraca false przy awarii poczty. */
+    private function sendAccountExistsNotice(string $email): bool
+    {
+        try {
+            ($this->mail ??= MailService::create())->sendAccountExistsNotice($email);
+
+            return true;
+        } catch (MailException $exception) {
+            error_log('Account-exists e-mail failed: ' . $exception->getMessage());
 
             return false;
         }
