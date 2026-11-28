@@ -25,8 +25,9 @@ Aktualnie aplikacja obsługuje:
 - panel użytkowników (Lab 11) pod `/admin/users` (`AdminController`, `public/js/users.js`) i API JSON (`UserApiController`: `GET /api/users`, `DELETE /api/users/{id}`, `PATCH /api/users/{id}/block`, `PATCH /api/users/{id}/role`) z blokowaniem kont (`users.is_blocked`), tokenem CSRF w nagłówku `X-CSRF-Token` i regułami w `App\Service\UserAdminService`; błędy pod `/api/` są w JSON (`ErrorController::showJson`, teksty w `api_errors`).
 - rezerwacje degustacji na `/tastings` (`public/js/reservations.js`, `ReservationApiController`: `GET /api/tasting-sessions`, `POST /api/reservations`, `DELETE /api/reservations/{id}`): rezerwacja działa tylko z JavaScriptem, zapis idzie w transakcji z `SELECT ... FOR UPDATE` na wierszu terminu (`PostgresReservationRepository::book`), błędy biznesowe to `ReservationException` z powodem mapowanym na kod HTTP w kontrolerze; nie liczymy miejsc w PHP ani w innym zapytaniu niż widok `tasting_session_availability`.
 - zabezpieczenia z Lab 12 (Security Bingo A1–E5; tabela dowodów jest w README, sekcja „Bezpieczeństwo (Lab 12)”): HTTPS (nginx z certyfikatem samopodpisanym, przekierowanie z HTTP, `FORCE_HTTPS`, `AppController::requireSecureConnection()`), limit prób logowania (`App\Service\LoginThrottle`: 5 błędów na parę e-mail+IP albo 20 na IP w 15 minut, odpowiedź 429 z `Retry-After`), dziennik nieudanych logowań bez haseł (tabela `failed_logins`, `PostgresFailedLoginRepository`, linia `[security]` w logu), singleton `PostgresUserRepository::instance()` na wspólnym połączeniu `Database::shared()` oraz skrót hasła pobierany tylko przy logowaniu (`findByEmail`, `create`).
+- poczta, upload i CRON z Lab 13 (opis w README, sekcja „Poczta, upload i CRON (Lab 13)”): e-mail powitalny po rejestracji przez PHPMailera (`App\Service\MailService`, ustawienia `config/mail.php` ze zmiennych `MAIL_*`, `MailException` łapany w `SecurityController`, wynik w adresie `?mail=sent|failed`, lokalnie Mailpit), upload zdjęcia wina (`App\Service\ImageUploader`: limit 2 MB, prawdziwy MIME przez `finfo`, rozszerzenie, losowa nazwa, zapis w `public/uploads/wines/`, w bazie tylko `wines.image_path`; nginx serwuje `uploads/` wyłącznie statycznie) oraz zadanie CRON (`bin/send-tasting-reminders.php`, `TastingReminderJob`, `docker/cron/crontab`, kontener `cron`; kolumna `reservations.reminder_sent_at` chroni przed podwójną wysyłką). Konfiguracja wyłącznie w `.env` (wzór `.env.example`), nigdy w kodzie.
 
-Baza PostgreSQL jest podłączona dla win (`wines`, `wine_pairings`), degustacji (`tastings`, `tasting_wines`, `tasting_sessions`; wolne miejsca czyta widok `tasting_session_availability`), rezerwacji (`reservations` przez `PostgresReservationRepository`) i kont (`users`, `roles` przez `PostgresUserRepository`). Uploadu i edycji treści w panelu jeszcze nie ma — nie opisuj ich jako istniejących.
+Baza PostgreSQL jest podłączona dla win (`wines`, `wine_pairings`), degustacji (`tastings`, `tasting_wines`, `tasting_sessions`; wolne miejsca czyta widok `tasting_session_availability`), rezerwacji (`reservations` przez `PostgresReservationRepository`) i kont (`users`, `roles` przez `PostgresUserRepository`). Edycji treści w panelu jeszcze nie ma — nie opisuj jej jako istniejącej.
 
 ## Stack technologiczny
 
@@ -41,14 +42,16 @@ Baza PostgreSQL jest podłączona dla win (`wines`, `wine_pairings`), degustacji
 
 ```text
 .
-├── bin/                       # skrypty CLI: demo-wines-crud.php, demo-repositories.php, demo-auth.php (uruchamiane w kontenerze php)
-├── config/                    # content.php (teksty i dane marki), database.php (połączenie z bazą ze zmiennych środowiskowych)
-├── database/                  # skrypty SQL: 01-schema, 02-indexes, 03-seed, 04-user-administration, 05-tasting-availability, 06-login-security (wykonywane raz przy pierwszym starcie bazy; 04, 05 i 06 można też uruchomić na istniejącej bazie)
+├── bin/                       # skrypty CLI: demo-wines-crud.php, demo-repositories.php, demo-auth.php, demo-security.php (uruchamiane w kontenerze php) oraz send-tasting-reminders.php (zadanie CRON z Lab 13)
+├── config/                    # content.php (teksty i dane marki), database.php (połączenie z bazą ze zmiennych środowiskowych), mail.php (SMTP i nadawca ze zmiennych MAIL_*)
+├── database/                  # skrypty SQL: 01-schema, 02-indexes, 03-seed, 04-user-administration, 05-tasting-availability, 06-login-security, 07-wine-photos, 08-reservation-reminders (wykonywane raz przy pierwszym starcie bazy; 04–08 można też uruchomić na istniejącej bazie)
 ├── docker/
 │   ├── db/                    # obraz PostgreSQL
+│   ├── cron/                  # crontab i start.sh kontenera cron (zadania cykliczne, Lab 13)
 │   ├── nginx/                 # obraz i konfiguracja Nginx
 │   └── php/                   # obraz PHP-FPM, rozszerzenia PHP i Composer
 ├── public/                    # jedyny publicznie dostępny katalog
+│   ├── uploads/wines/         # zdjęcia win wgrane z formularza (poza gitem, w repozytorium tylko .gitkeep)
 │   ├── css/style.css          # globalne style i zmienne projektu
 │   ├── js/                    # app.js (moduły ES z modules/), users.js (panel użytkowników), reservations.js (rezerwacje na /tastings), theme.js
 │   ├── index.php              # front controller i definicje tras
@@ -213,7 +216,7 @@ docker compose up --build -d
 
 Aplikacja jest dostępna pod `https://localhost:8443` (certyfikat samopodpisany z obrazu nginx, przeglądarka pokaże ostrzeżenie); `http://localhost:8080` przekierowuje na HTTPS. Zmienna `FORCE_HTTPS=0` w `.env` wyłącza wymuszanie HTTPS i pozwala pracować pod `http://localhost:8080`. Zmiany w `docker/` wymagają `docker compose up --build -d`.
 
-Na istniejącą bazę (wolumen już istnieje) migracje dopisuje się poleceniami `docker compose exec db psql -U app -d app -v ON_ERROR_STOP=1 -f /docker-entrypoint-initdb.d/04-user-administration.sql` i tak samo `.../05-tasting-availability.sql` oraz `.../06-login-security.sql`. Kod czyta widok z `05` i tabelę z `06`, więc bez tych migracji `/tastings` i logowanie nie działają. Ścieżka pliku jest wewnątrz kontenera, więc polecenie działa w każdej powłoce (bez przekierowania `<`).
+Na istniejącą bazę (wolumen już istnieje) migracje dopisuje się poleceniami `docker compose exec db psql -U app -d app -v ON_ERROR_STOP=1 -f /docker-entrypoint-initdb.d/04-user-administration.sql` i tak samo `.../05-tasting-availability.sql`, `.../06-login-security.sql`, `.../07-wine-photos.sql` oraz `.../08-reservation-reminders.sql`. Kod czyta widok z `05`, tabelę z `06` i kolumny z `07` i `08`, więc bez tych migracji `/tastings`, logowanie, katalog win i rezerwacje nie działają. Ścieżka pliku jest wewnątrz kontenera, więc polecenie działa w każdej powłoce (bez przekierowania `<`).
 
 Przydatne polecenia:
 
@@ -225,7 +228,7 @@ docker compose exec php composer dump-autoload
 docker compose down
 ```
 
-Kontener `php` przy starcie sam odświeża autoloader. Jeśli katalog `vendor/` nie istnieje, zainstaluj zależności/autoloader poleceniem:
+Kontener `php` przy starcie robi `composer install` (PHPMailer; przy braku sieci tylko odświeża autoloader) i nadaje `www-data` prawa do `public/uploads`. Zadania cykliczne wykonuje kontener `cron` (`docker compose logs cron`), a wiadomości e-mail widać w Mailpit (http://localhost:8025). Jeśli katalog `vendor/` nie istnieje, zainstaluj zależności/autoloader poleceniem:
 
 ```bash
 docker compose run --rm php composer install
@@ -268,4 +271,4 @@ W projekcie nie ma obecnie skonfigurowanego zestawu testów automatycznych ani n
 - Nie rozszerzaj zakresu zadania o refaktoryzacje, migracje lub nowe zależności bez uzasadnienia.
 - Przy zadaniach kursowych wykonuj dokładnie to, co opisuje polecenie — nic ponad nie.
 - Jeśli wymaganie jest niejednoznaczne, wybierz rozwiązanie zgodne z istniejącymi wzorcami; pytaj tylko wtedy, gdy wybór istotnie zmieni zachowanie aplikacji.
-- Po zakończeniu opisz zmienione pliki oraz wykonaną weryfikację.
+- Po zakończeniu opisz zmienione pliki oraz wykonaną weryfikację.
