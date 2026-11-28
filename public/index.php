@@ -14,6 +14,7 @@ use App\Controller\UserApiController;
 use App\Controller\WineController;
 use App\Controller\WineManagementController;
 use App\Exception\ApiException;
+use App\Exception\BadRequestException;
 use App\Exception\HttpException;
 use App\Routing;
 use App\Service\Session;
@@ -72,7 +73,7 @@ try {
     if ($isApiRequest) {
         $errors->showJson($exception->statusCode(), $exception instanceof ApiException ? $exception->reason() : null);
     } else {
-        $errors->show($exception->statusCode());
+        $errors->show($exception->statusCode(), $exception instanceof BadRequestException ? $exception->returnTo() : null);
     }
 } catch (\Throwable $exception) {
     // Szczegóły trafiają do logu serwera, użytkownik widzi tylko ogólną stronę błędu (500).

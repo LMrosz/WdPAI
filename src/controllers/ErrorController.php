@@ -44,8 +44,13 @@ final class ErrorController extends AppController
         ], $statusCode);
     }
 
-    /** Strona błędu z odpowiednim kodem odpowiedzi; nieznany kod wyświetla się jako 500. */
-    public function show(int $statusCode): void
+    /**
+     * Strona błędu z odpowiednim kodem odpowiedzi; nieznany kod wyświetla się jako 500.
+     *
+     * @param string|null $returnTo ścieżka, do której prowadzi dodatkowy link na stronie 400
+     *        (np. "/wines" po nieznanym filtrze); liczy się tylko ścieżka znana z config/content.php
+     */
+    public function show(int $statusCode, ?string $returnTo = null): void
     {
         $key = self::KEYS[$statusCode] ?? self::KEYS[500];
 
@@ -57,6 +62,9 @@ final class ErrorController extends AppController
             'errorKey' => $key,
             // po 401 sensowny następny krok to logowanie, a nie strona główna
             'backUrl' => $statusCode === 401 ? '/login' : '/',
+            'returnUrl' => $statusCode === 400 && $returnTo !== null && $this->content()->get('errors.bad_request.return.' . $returnTo) !== null
+                ? $returnTo
+                : null,
         ], true);
     }
 }
