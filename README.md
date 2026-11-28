@@ -11,7 +11,7 @@ VinoKeep to aplikacja webowa dla winnic: prezentuje ofertę (wina, degustacje, h
 | Degustacje (`/tastings`) | Oferty degustacji z winami i najbliższymi terminami (wolne miejsca z widoku bazy), kroki rezerwacji oraz formularze rezerwacji i anulowania dla zalogowanych | gotowe, dane z bazy, rezerwacje przez Fetch API (wymagają JavaScriptu) |
 | O winnicy (`/about`) | Historia, fakty i cechy posiadłości | gotowe |
 | Logowanie (`/login`) | Uwierzytelnianie hasłem (`password_verify`), sesja z nowym id po zalogowaniu, jeden ogólny komunikat przy złym adresie lub haśle, token CSRF | gotowe |
-| Rejestracja (`/register`) | Walidacja e-maila i hasła (długość, litera, cyfra, znak specjalny, powtórzenie), zapis konta gościa ze skrótem hasła (`password_hash`), obsługa zajętego adresu, wiadomość powitalna e-mailem (Lab 13) | gotowe |
+| Rejestracja (`/register`) | Walidacja e-maila i hasła (długość, litera, cyfra, znak specjalny, powtórzenie), zapis konta gościa ze skrótem hasła (`password_hash`), jednakowa odpowiedź dla nowego i zajętego adresu (formularz nie zdradza, kto ma konto), wiadomość powitalna e-mailem (Lab 13) | gotowe |
 | Wylogowanie (`POST /logout`) | Czyści sesję, wygasza ciasteczko i niszczy sesję; wymaga tokenu CSRF | gotowe |
 | Konto (`/account`) | Dane zalogowanego użytkownika, jego rola i uprawnienia; bez logowania 401 | gotowe |
 | Zarządzanie winami (`/wines/new`, `/wines/{id}/edit`) | Formularze dodawania i edycji z walidacją, usuwanie z potwierdzeniem; piwniczy dodaje i edytuje, administrator i właściciel dodatkowo usuwają | gotowe |
@@ -326,6 +326,7 @@ my-app/
 ├── docker/                  # Dockerfile'e i konfiguracja: nginx (szablon z HTTPS, wspólne nagłówki, limit i zasady dla uploads/), php (security.ini, uploads.ini, xdebug.ini), cron (crontab, start.sh), db
 ├── public/
 │   ├── index.php            # front controller, definicje tras
+│   ├── errors/413.html      # statyczna strona „plik za duży”, serwowana przez nginx (error_page 413)
 │   ├── uploads/wines/       # zdjęcia win wgrane z formularza (poza gitem; w repozytorium tylko .gitkeep)
 │   ├── css/style.css        # design system „Terroir & Heritage Luxe”, tokeny obu motywów
 │   ├── js/theme.js          # przełącznik motywu jasny/ciemny/systemowy
@@ -335,7 +336,7 @@ my-app/
 │   ├── js/reservations.js   # rezerwacje terminów (Fetch API), ładowany tylko na /tastings
 │   └── views/               # widoki *.html.php (sam element <main>)
 │       ├── layout.html.php  # wspólny szkielet strony, składa head, nagłówek, treść i stopkę
-│       ├── error.html.php   # wspólny widok błędów 400, 401, 403, 404 i 500
+│       ├── error.html.php   # wspólny widok błędów 400, 401, 403, 404 i 500 (400 po złym filtrze win ma dodatkowy link do katalogu)
 │       ├── account.html.php # konto zalogowanego użytkownika
 │       ├── admin-users.html.php # panel użytkowników (szkielet, listę rysuje js/users.js)
 │       ├── wine-form.html.php # formularz dodawania i edycji wina
@@ -382,7 +383,7 @@ Wygląd obu motywów opisują zmienne CSS w `public/css/style.css`: motyw jasny 
 | Metoda | Ścieżka | Opis |
 |---|---|---|
 | GET | `/` | Strona główna |
-| GET | `/wines` | Katalog win; opcjonalny filtr `?type=red`, `white`, `rose` albo `sparkling` (inna wartość daje 400) |
+| GET | `/wines` | Katalog win; opcjonalny filtr `?type=red`, `white`, `rose` albo `sparkling` (inna wartość daje 400; strona błędu ma link „Zobacz wszystkie wina”) |
 | GET | `/wines/new` | Formularz nowego wina (`CELLAR_MASTER`, `WINERY_OWNER`); musi być zarejestrowana przed `/wines/{id}` |
 | POST | `/wines` | Zapis nowego wina: błędy wracają do formularza (422), sukces przekierowuje na stronę wina |
 | GET | `/wines/{id}` | Strona wina z opisem, notatkami degustacyjnymi i propozycjami potraw; `id` niebędące dodatnią liczbą daje 400, a nieistniejące wino 404 |
@@ -394,7 +395,7 @@ Wygląd obu motywów opisują zmienne CSS w `public/css/style.css`: motyw jasny 
 | GET | `/login` | Formularz logowania |
 | POST | `/login` | Logowanie: zły token CSRF to 403, błędne pola 422, zły adres lub hasło 422 z ogólnym komunikatem, sukces przekierowuje na `/account` |
 | GET | `/register` | Formularz rejestracji |
-| POST | `/register` | Rejestracja: błędy i zajęty adres wracają do formularza (422), sukces przekierowuje na `/login?registered=1` |
+| POST | `/register` | Rejestracja: błędy formatu wracają do formularza (422); nowy i już zajęty adres kończą się tym samym przekierowaniem na `/login?registered=1&mail=sent` (albo `failed`) i tymi samymi komunikatami |
 | POST | `/logout` | Wylogowanie (token CSRF), przekierowanie na `/login?logged_out=1` |
 | GET | `/account` | Konto zalogowanego użytkownika (bez logowania 401) |
 | GET | `/admin/users` | Panel użytkowników (`ADMIN`, `WINERY_OWNER`); bez logowania 401, z inną rolą 403 |
@@ -485,7 +486,7 @@ Strona `/tastings` nadal jest renderowana po stronie serwera (lista ofert i term
 
 - hasło zapisujemy jako `password_hash(PASSWORD_DEFAULT)`, a sprawdzamy przez `password_verify`; jawnego hasła nie ma nigdzie w bazie ani w logach,
 - nowe konto zawsze dostaje rolę `GUEST`; roli nie da się podać w formularzu,
-- zajęty adres kończy się komunikatem przy polu e-mail; ochrona działa także przy dwóch równoczesnych rejestracjach, bo ostateczną decyzję podejmuje `UNIQUE` w bazie (`EmailAlreadyUsedException`),
+- zajęty adres nie dostaje osobnego komunikatu: formularz odpowiada tak samo dla nowego i zajętego adresu (to samo przekierowanie, te same teksty `login.registered`, `login.mail_sent`, `login.mail_failed`), więc nie da się nim sprawdzać, kto ma konto. Właściciel zajętego adresu dostaje zamiast wiadomości powitalnej wiadomość „Próba rejestracji” (`MailService::sendAccountExistsNotice()`), z informacją, że konto już istnieje, i z prośbą o zignorowanie, jeśli to nie on. Konto nie jest zakładane ponownie ani zmieniane, a hasło z drugiej rejestracji jest odrzucane. Ostateczną decyzję, że adres jest zajęty, podejmuje `UNIQUE` w bazie (`EmailAlreadyUsedException`), więc ochrona działa także przy dwóch równoczesnych rejestracjach. Skrót hasła powstaje przed zapisem w obu przypadkach, więc czas odpowiedzi nie zdradza wyniku,
 - zły adres i złe hasło dają ten sam komunikat „Nieprawidłowy e-mail lub hasło.”, a przy nieistniejącym koncie i tak liczony jest skrót, żeby czas odpowiedzi nie zdradzał, czy konto istnieje,
 - po zalogowaniu `session_regenerate_id(true)` wymienia id sesji (ochrona przed session fixation), a stare id przestaje działać.
 
@@ -549,7 +550,7 @@ Lab 12 to „Security Bingo”: 25 punktów (A1–E5), a przy każdym ma być do
 | A3 | Hasła nie trafiają do logów ani komunikatów błędów | `LoginThrottle::recordFailure()` nie przyjmuje hasła; `zend.exception_ignore_args` w `docker/php/security.ini` i `public/index.php` | Po nieudanym logowaniu `docker compose logs php` zawiera linię `[security]` bez hasła; strony błędów nie wypisują danych z formularza |
 | A4 | Limit prób logowania i blokada czasowa | `LoginThrottle`, `SecurityController::authenticate()` | 6 błędnych logowań na to samo konto daje 429 i `Retry-After`; `bin/demo-security.php`, sekcja A4 |
 | A5 | Sensowne kody HTTP | `ErrorController`, wyjątki `BadRequestException`, `UnauthorizedException`, `ForbiddenException` | `/wines/abc` to 400, `/account` bez logowania 401, POST bez tokenu CSRF 403, nieznany adres 404, błędne dane formularza 422, zbyt wiele prób 429 |
-| B1 | Nie zdradzam, czy e-mail istnieje w bazie | `AuthService::authenticate()`: jeden wynik `null` dla złego adresu i hasła, `password_verify` na skrócie zapasowym wyrównuje czas | Nieistniejący adres i złe hasło dają ten sam komunikat „Nieprawidłowy e-mail lub hasło.” |
+| B1 | Nie zdradzam, czy e-mail istnieje w bazie | `AuthService::authenticate()`: jeden wynik `null` dla złego adresu i hasła, `password_verify` na skrócie zapasowym wyrównuje czas; `SecurityController::createAccount()`: ta sama odpowiedź dla nowego i zajętego adresu | Nieistniejący adres i złe hasło dają ten sam komunikat „Nieprawidłowy e-mail lub hasło.”; rejestracja zajętego adresu daje to samo przekierowanie i te same teksty co nowego (różnica jest tylko w skrzynce właściciela adresu) |
 | B2 | Token CSRF w formularzu logowania | `SecurityController::authenticate()` zaczyna od `requireValidCsrf()`; ukryte pole `csrf_token` w widoku | POST `/login` bez tokenu albo z błędnym to 403 |
 | B3 | Regeneracja ID sesji po poprawnym logowaniu | `Session::signIn()`: `session_regenerate_id(true)`; `session.use_strict_mode` odrzuca id wymyślone przez klienta | Wartość `PHPSESSID` przed i po zalogowaniu jest inna, stare id przestaje działać |
 | B4 | Walidacja złożoności hasła | `SecurityController::REGISTER_RULES` (8–64 znaków, litera i cyfra, znak specjalny, do 72 bajtów) w `Validator` | Rejestracja z hasłem `abc` kończy się 422 z komunikatami przy polu |
@@ -557,7 +558,7 @@ Lab 12 to „Security Bingo”: 25 punktów (A1–E5), a przy każdym ma być do
 | C1 | Walidacja formatu e-mail po stronie serwera | reguła `email` w `Validator` oraz Value Object `Email` | Adres `to-nie-jest-email` daje 422 także po wyłączeniu JavaScriptu |
 | C2 | Token CSRF w formularzu rejestracji | `SecurityController::createAccount()`, `requireValidCsrf()` | POST `/register` bez tokenu to 403 |
 | C3 | Cookie sesyjne z flagą HttpOnly | `Session::start()`: `'httponly' => true` | W narzędziach przeglądarki (Application → Cookies) `PHPSESSID` ma `HttpOnly`; `document.cookie` go nie pokazuje |
-| C4 | Sprawdzenie, czy e-mail jest już w bazie przy rejestracji | `PostgresUserRepository::create()`: `UNIQUE` w bazie i `EmailAlreadyUsedException`, komunikat przy polu e-mail | Druga rejestracja tego samego adresu daje 422 „Konto z tym adresem e-mail już istnieje.”; sprawdzenie w bazie (a nie `SELECT` przed `INSERT`) działa też przy dwóch równoległych żądaniach |
+| C4 | Sprawdzenie, czy e-mail jest już w bazie przy rejestracji | `PostgresUserRepository::create()`: `UNIQUE` w bazie i `EmailAlreadyUsedException`, komunikat przy polu e-mail | Druga rejestracja tego samego adresu nie zakłada drugiego konta (jedno konto w `users`), kończy się tym samym przekierowaniem co pierwsza, a w Mailpit pojawia się wiadomość „Próba rejestracji w Corvo Bianco” do właściciela adresu; sprawdzenie w bazie (a nie `SELECT` przed `INSERT`) działa też przy dwóch równoległych żądaniach |
 | C5 | Pobieranie z bazy minimalnego zestawu danych o użytkowniku | `PostgresUserRepository::SELECT` (bez `password_hash`) i `SELECT_WITH_HASH` tylko dla `findByEmail()` i `create()` | `bin/demo-security.php`, sekcja C5: `findById` zwraca pusty skrót |
 | D1 | UserRepository jako singleton | `PostgresUserRepository::instance()`, `Database::shared()`, `AppController::users()` | `bin/demo-security.php`, sekcja D1: ten sam obiekt i zero nowych połączeń |
 | D2 | Ograniczona długość danych wejściowych | `EMAIL_MAX_LENGTH` (254), `PASSWORD_MAX_LENGTH` (64) i `PASSWORD_MAX_BYTES` (72) w `SecurityController`; `VARCHAR` w bazie | E-mail dłuższy niż 254 znaków albo hasło dłuższe niż 64 daje 422 |
@@ -598,7 +599,7 @@ Lab 13 dodaje trzy rzeczy: wysyłkę e-maili (PHPMailer i Mailpit), bezpieczny u
 
 Po założeniu konta `SecurityController` woła `MailService::sendWelcomeEmail()` i przekierowuje na `/login?registered=1&mail=sent` albo `&mail=failed`. `MailService` używa PHPMailera przez SMTP (`isSMTP()`), wysyła wiadomość w HTML z wersją tekstową (`AltBody`), w UTF-8, z limitem czasu połączenia 5 sekund, żeby niedostępny serwer nie wieszał żądania. Teksty e-maili są w `config/content.php` (klucze `mail.*`), a wartości z zewnątrz (imię, adres) są escapowane w HTML, a z imienia usuwane są znaki końca linii (wstrzykiwanie nagłówków).
 
-Obsługa błędów: każdy błąd wysyłki (serwer niedostępny, zły adres odbiorcy, brak biblioteki) kończy się wyjątkiem `MailException`, który kontroler łapie. Konto zostaje założone, szczegóły błędu trafiają tylko do logu (`docker compose logs php`), a użytkownik widzi ostrzeżenie „Nie udało się wysłać wiadomości powitalnej, ale konto działa”. Surowy komunikat SMTP nigdy nie trafia na stronę, a wartość `mail=` z adresu jest przyjmowana tylko z listy `sent` i `failed`.
+Obsługa błędów: każdy błąd wysyłki (serwer niedostępny, zły adres odbiorcy, brak biblioteki) kończy się wyjątkiem `MailException`, który kontroler łapie. Konto zostaje założone, szczegóły błędu trafiają tylko do logu (`docker compose logs php`), a użytkownik widzi ostrzeżenie „Nie udało się wysłać wiadomości na podany adres. Jeśli to nowy adres, konto mimo to działa i możesz się zalogować.” (to samo ostrzeżenie dostaje właściciel zajętego adresu, więc ostrzeżenie też niczego nie zdradza). Surowy komunikat SMTP nigdy nie trafia na stronę, a wartość `mail=` z adresu jest przyjmowana tylko z listy `sent` i `failed`.
 
 Jak sprawdzić:
 
@@ -611,7 +612,7 @@ Formularz wina (`/wines/new`, `/wines/{id}/edit`) ma pole pliku (`enctype="multi
 
 | Kontrola | Jak działa |
 |---|---|
-| Rozmiar | najwyżej 2 MB (`filesize` na pliku tymczasowym); nginx (`client_max_body_size 3m`) i PHP (`docker/php/uploads.ini`: `upload_max_filesize=3M`, `post_max_size=4M`) odcinają większe żądania jeszcze wcześniej |
+| Rozmiar | najwyżej 2 MB (`filesize` na pliku tymczasowym); nginx (`client_max_body_size 3m`) i PHP (`docker/php/uploads.ini`: `upload_max_filesize=3M`, `post_max_size=4M`) odcinają większe żądania jeszcze wcześniej. Plik 2–3 MB dociera do aplikacji i dostaje komunikat przy polu (422), a powyżej 3 MB nginx odpowiada 413 zanim uruchomi się PHP, więc stronę błędu serwuje sam nginx (`error_page 413`, statyczny `public/errors/413.html` w wyglądzie aplikacji; bezpośrednie wejście na ten adres daje 404 dzięki `internal`) |
 | Prawdziwy typ MIME | `finfo` czyta zawartość pliku; dozwolone tylko `image/jpeg` i `image/png`, nagłówek `Content-Type` z żądania jest ignorowany |
 | Rozszerzenie | z nazwy od użytkownika; dozwolone `jpg`, `jpeg`, `png` i zgodne z typem z zawartości (plik JPEG nazwany `.png` jest odrzucany, tak samo `.php.jpg` i plik bez rozszerzenia) |
 | Plik jest obrazem | `getimagesize` musi odczytać plik jako obraz tego samego typu; wymiary do 6000 px na bok i 24 mln pikseli (ochrona przed „bombą dekompresyjną”) |
