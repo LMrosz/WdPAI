@@ -20,6 +20,12 @@ use App\Service\Session;
 
 require_once dirname(__DIR__) . '/vendor/autoload.php';
 
+// Błędy PHP trafiają do logu serwera, a nie na stronę (nie zdradzamy ścieżek ani zapytań), a ślad
+// wyjątku w logu nie zawiera argumentów funkcji (w argumentach mogłoby być hasło z formularza).
+ini_set('display_errors', '0');
+ini_set('log_errors', '1');
+ini_set('zend.exception_ignore_args', '1');
+
 // Sesja jest konfigurowana i uruchamiana raz, zanim jakikolwiek kontroler odczyta $_SESSION.
 Session::start();
 

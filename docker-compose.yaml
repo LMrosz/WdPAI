@@ -5,6 +5,11 @@ services:
       dockerfile: docker/nginx/Dockerfile
     ports:
       - "8080:80"
+      # HTTPS z certyfikatem samopodpisanym; przy FORCE_HTTPS=1 port 8080 tylko przekierowuje na ten port
+      - "${HTTPS_PORT:-8443}:443"
+    environment:
+      HTTPS_PORT: ${HTTPS_PORT:-8443}
+      FORCE_HTTPS: ${FORCE_HTTPS:-1}
     volumes:
       - .:/app
     links:
@@ -48,6 +53,8 @@ services:
       DB_NAME: ${POSTGRES_DB:-app}
       DB_USER: ${POSTGRES_USER:-app}
       DB_PASSWORD: ${POSTGRES_PASSWORD:-app_password}
+      # przy 1 aplikacja odmawia obsługi logowania i rejestracji przez zwykłe HTTP, a ciasteczko sesji jest Secure
+      FORCE_HTTPS: ${FORCE_HTTPS:-1}
     depends_on:
       db:
         condition: service_healthy

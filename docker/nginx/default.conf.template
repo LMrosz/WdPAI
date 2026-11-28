@@ -1,0 +1,35 @@
+# Szablon konfiguracji nginx (obraz nginx podstawia zmienne ${...} z środowiska kontenera przy starcie).
+# HTTPS_PORT i FORCE_HTTPS pochodzą z docker-compose.yaml (domyślnie 8443 i 1).
+
+# Port 80: przy FORCE_HTTPS=1 wszystko jest przekierowywane na HTTPS (dane logowania nie wędrują jawnym tekstem).
+server {
+    listen 80;
+    server_name _;
+
+    set $force_https "${FORCE_HTTPS}";
+
+    if ($force_https = "1") {
+        return 301 https://$host:${HTTPS_PORT}$request_uri;
+    }
+
+    include /etc/nginx/app-common.conf;
+}
+
+# Port 443: certyfikat samopodpisany z obrazu (tylko do pracy lokalnej, przeglądarka pokaże ostrzeżenie).
+# Na produkcji podmień ssl_certificate i ssl_certificate_key na prawdziwy certyfikat (np. Let's Encrypt),
+# a w tym bloku odkomentuj nagłówek HSTS.
+server {
+    listen 443 ssl;
+    server_name _;
+
+    ssl_certificate /etc/nginx/certs/dev.crt;
+    ssl_certificate_key /etc/nginx/certs/dev.key;
+    ssl_protocols TLSv1.2 TLSv1.3;
+    ssl_prefer_server_ciphers off;
+
+    # HSTS wiąże przeglądarkę z HTTPS dla całej nazwy hosta (także dla innych lokalnych projektów
+    # na localhost), więc lokalnie jest wyłączone:
+    # add_header Strict-Transport-Security "max-age=31536000; includeSubDomains" always;
+
+    include /etc/nginx/app-common.conf;
+}

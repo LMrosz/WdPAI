@@ -41,6 +41,9 @@ RUN apk add --no-cache --virtual .xdebug-build-deps $PHPIZE_DEPS linux-headers \
     && apk del .xdebug-build-deps
 COPY docker/php/xdebug.ini /usr/local/etc/php/conf.d/xdebug.ini
 
+# Ustawienia bezpieczeństwa: bez wyświetlania błędów na stronie, bez argumentów w śladzie wyjątku (Lab 12)
+COPY docker/php/security.ini /usr/local/etc/php/conf.d/zz-security.ini
+
 COPY . .
 
 ENV COMPOSER_ALLOW_SUPERUSER=1
