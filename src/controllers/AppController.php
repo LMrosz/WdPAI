@@ -312,4 +312,4 @@ abstract class AppController
     {
         return $this->userRepository ??= PostgresUserRepository::instance();
     }
-}
+}
