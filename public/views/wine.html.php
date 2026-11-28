@@ -42,12 +42,18 @@ $tasting = [
                     <?= $e($wine->price) ?>
                 </p>
             </div>
-            <div class="wine-stage" aria-hidden="true">
-                <?php if ($wine->vintage !== null): ?>
-                    <span class="wine-stage-year"><?= $e($wine->vintage) ?></span>
-                <?php endif; ?>
-                <?php require __DIR__ . '/partials/wine-bottle.html.php'; ?>
-            </div>
+            <?php if ($wine->imageUrl() !== null): ?>
+                <div class="wine-stage wine-stage--photo">
+                    <img src="<?= $e($wine->imageUrl()) ?>" alt="<?= $e($wine->title()) ?>" decoding="async">
+                </div>
+            <?php else: ?>
+                <div class="wine-stage" aria-hidden="true">
+                    <?php if ($wine->vintage !== null): ?>
+                        <span class="wine-stage-year"><?= $e($wine->vintage) ?></span>
+                    <?php endif; ?>
+                    <?php require __DIR__ . '/partials/wine-bottle.html.php'; ?>
+                </div>
+            <?php endif; ?>
         </header>
 
         <div class="wine-layout">

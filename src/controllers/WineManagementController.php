@@ -8,11 +8,13 @@ use App\Database;
 use App\Dto\WineData;
 use App\Exception\DuplicateWineException;
 use App\Exception\NotFoundException;
+use App\Exception\UploadException;
 use App\Model\Permission;
 use App\Model\Wine;
 use App\Repository\PostgresWineRepository;
 use App\Repository\WineRepositoryInterface;
 use App\Repository\WineWriterInterface;
+use App\Service\ImageUploader;
 use App\Service\Validator;
 
 /**
@@ -45,9 +47,14 @@ final class WineManagementController extends AppController
 
     private readonly WineRepositoryInterface&WineWriterInterface $wines;
 
-    public function __construct((WineRepositoryInterface&WineWriterInterface)|null $wines = null)
-    {
+    private readonly ImageUploader $uploader;
+
+    public function __construct(
+        (WineRepositoryInterface&WineWriterInterface)|null $wines = null,
+        ?ImageUploader $uploader = null,
+    ) {
         $this->wines = $wines ?? new PostgresWineRepository(Database::shared());
+        $this->uploader = $uploader ?? ImageUploader::create();
     }
 
     /** GET /wines/new – pusty formularz nowego wina (piwniczy, właściciel). */
@@ -65,14 +72,32 @@ final class WineManagementController extends AppController
         $this->requireValidCsrf();
 
         [$data, $errors, $old] = $this->readForm();
+        $photo = $this->submittedPhoto();
+        $errors += $this->photoErrors($photo);
 
         if ($errors === []) {
+            $path = null;
+
             try {
+                $path = $photo === null ? null : $this->uploader->store($photo);
                 $wine = $this->wines->create($data);
+
+                if ($path !== null) {
+                    $this->wines->changeImage($wine->id, $path);
+                }
+
                 $this->flash('flash.wine_created');
                 $this->redirect('/wines/' . $wine->id);
             } catch (DuplicateWineException) {
+                $this->uploader->delete($path);
                 $errors['name'] = $this->text('wines.form.duplicate');
+            } catch (UploadException $exception) {
+                $errors['photo'] = $this->photoMessage($exception);
+            } catch (\Throwable $exception) {
+                // plik, który już leży na dysku, a wino się nie zapisało, nie może zostać jako śmieć
+                $this->uploader->delete($path);
+
+                throw $exception;
             }
         }
 
@@ -88,7 +113,7 @@ final class WineManagementController extends AppController
         $wineId = $this->idFromPath($id);
         $data = $this->wines->findDataById($wineId) ?? throw new NotFoundException('Wine ' . $id . ' not found');
 
-        $this->renderForm($wineId, [], $this->formValues($data));
+        $this->renderForm($wineId, [], $this->formValues($data), $this->wines->findImagePath($wineId));
     }
 
     /** POST /wines/{id}/edit – zapis zmian. */
@@ -99,22 +124,44 @@ final class WineManagementController extends AppController
 
         $wineId = $this->idFromPath($id);
         [$data, $errors, $old] = $this->readForm();
+        $photo = $this->submittedPhoto();
+        $errors += $this->photoErrors($photo);
+        $currentPath = $this->wines->findImagePath($wineId);
 
         if ($errors === []) {
+            $newPath = null;
+
             try {
+                $newPath = $photo === null ? null : $this->uploader->store($photo);
+
                 if (!$this->wines->update($wineId, $data)) {
                     throw new NotFoundException('Wine ' . $id . ' not found');
+                }
+
+                if ($newPath !== null) {
+                    $this->wines->changeImage($wineId, $newPath);
+                    $this->uploader->delete($currentPath);
+                } elseif ($this->postString('remove_photo') === '1' && $currentPath !== null) {
+                    $this->wines->changeImage($wineId, null);
+                    $this->uploader->delete($currentPath);
                 }
 
                 $this->flash('flash.wine_updated');
                 $this->redirect('/wines/' . $wineId);
             } catch (DuplicateWineException) {
+                $this->uploader->delete($newPath);
                 $errors['name'] = $this->text('wines.form.duplicate');
+            } catch (UploadException $exception) {
+                $errors['photo'] = $this->photoMessage($exception);
+            } catch (\Throwable $exception) {
+                $this->uploader->delete($newPath);
+
+                throw $exception;
             }
         }
 
         http_response_code(422);
-        $this->renderForm($wineId, $errors, $old);
+        $this->renderForm($wineId, $errors, $old, $currentPath);
     }
 
     /** POST /wines/{id}/delete – usunięcie wina; tylko właściciel winnicy (WINERY_OWNER). */
@@ -123,9 +170,15 @@ final class WineManagementController extends AppController
         $this->requirePermission(Permission::DeleteWines);
         $this->requireValidCsrf();
 
-        if (!$this->wines->delete($this->idFromPath($id))) {
+        $wineId = $this->idFromPath($id);
+        $imagePath = $this->wines->findImagePath($wineId);
+
+        if (!$this->wines->delete($wineId)) {
             throw new NotFoundException('Wine ' . $id . ' not found');
         }
+
+        // plik zdjęcia znika razem z winem, ale dopiero po udanym usunięciu z bazy
+        $this->uploader->delete($imagePath);
 
         $this->flash('flash.wine_deleted');
         $this->redirect('/wines');
@@ -239,8 +292,9 @@ final class WineManagementController extends AppController
      * @param int|null $wineId id edytowanego wina albo null przy dodawaniu
      * @param array<string, string> $errors pole => komunikat
      * @param array<string, string> $old wartości pól
+     * @param string|null $imagePath ścieżka aktualnego zdjęcia wina (przy edycji)
      */
-    private function renderForm(?int $wineId, array $errors, array $old): void
+    private function renderForm(?int $wineId, array $errors, array $old, ?string $imagePath = null): void
     {
         $editing = $wineId !== null;
         $categories = $this->content()->get('wines.filters') ?? [];
@@ -256,7 +310,58 @@ final class WineManagementController extends AppController
             'rules' => self::fieldRules(),
             'errors' => $errors,
             'old' => $old,
+            'imagePath' => $imagePath,
+            'photoAccept' => 'image/jpeg,image/png',
+            'photoMaxMb' => ImageUploader::MAX_BYTES / (1024 * 1024),
         ], true);
+    }
+
+    /**
+     * Zdjęcie z formularza albo null, gdy nie wybrano pliku.
+     *
+     * @return array<string, mixed>|null
+     */
+    private function submittedPhoto(): ?array
+    {
+        $file = $_FILES['photo'] ?? null;
+
+        return ImageUploader::wasSubmitted($file) ? $file : null;
+    }
+
+    /**
+     * Sprawdza zdjęcie przed zapisem wina, żeby błąd pliku wrócił do formularza razem z błędami pól.
+     *
+     * @param array<string, mixed>|null $photo
+     * @return array<string, string> pusta lub ['photo' => komunikat]
+     */
+    private function photoErrors(?array $photo): array
+    {
+        if ($photo === null) {
+            return [];
+        }
+
+        try {
+            $this->uploader->validate($photo);
+        } catch (UploadException $exception) {
+            return ['photo' => $this->photoMessage($exception)];
+        }
+
+        return [];
+    }
+
+    /** Komunikat dla użytkownika; szczegóły techniczne zostają w dzienniku, nie na stronie. */
+    private function photoMessage(UploadException $exception): string
+    {
+        if ($exception->reason === 'upload_failed') {
+            error_log('Wine photo upload failed: ' . $exception->getMessage());
+        }
+
+        $known = ['too_large', 'invalid_type', 'invalid_extension', 'invalid_image', 'upload_failed'];
+        $reason = in_array($exception->reason, $known, true) ? $exception->reason : 'upload_failed';
+
+        return $this->text('wines.form.photo_errors.' . $reason, [
+            'max' => ImageUploader::MAX_BYTES / (1024 * 1024),
+        ]);
     }
 
     /**

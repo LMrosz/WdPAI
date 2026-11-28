@@ -11,7 +11,8 @@
  * data-rules, który czyta public/js/modules/form-validation.js.
  *
  * @var array{name: string, type: string, label: string, autocomplete?: string, value?: string, hint?: string,
- *     options?: array<string, string>, rules?: list<string>, maxlength?: int, inputmode?: string, rows?: int} $field
+ *     options?: array<string, string>, rules?: list<string>, maxlength?: int, inputmode?: string, rows?: int,
+ *     accept?: string} $field
  * @var array<string, string> $errors nazwa pola => komunikat
  */
 $name = $field['name'];
@@ -35,6 +36,7 @@ $attributes = ' id="' . $e($name) . '" name="' . $e($name) . '"'
     . (isset($field['autocomplete']) ? ' autocomplete="' . $e($field['autocomplete']) . '"' : '')
     . ($maxLength !== null ? ' maxlength="' . $maxLength . '"' : '')
     . (isset($field['inputmode']) ? ' inputmode="' . $e($field['inputmode']) . '"' : '')
+    . (isset($field['accept']) ? ' accept="' . $e($field['accept']) . '"' : '')
     . ($rules !== [] ? ' data-rules="' . $e(implode(' ', $rules)) . '"' : '')
     . ($field['type'] === 'password' ? ' data-no-trim' : '')
     . ($isRequired ? ' aria-required="true"' : '')

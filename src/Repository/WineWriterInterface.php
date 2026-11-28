@@ -25,6 +25,16 @@ interface WineWriterInterface
      */
     public function update(int $id, WineData $data): bool;
 
+    /** Ścieżka zdjęcia wina (względem public/) albo null, gdy wino nie ma zdjęcia lub nie istnieje. */
+    public function findImagePath(int $id): ?string;
+
+    /**
+     * Ustawia albo usuwa (null) zdjęcie wina. W bazie jest tylko ścieżka względna, plik leży na dysku.
+     *
+     * @return bool false, gdy wina o takim id nie ma
+     */
+    public function changeImage(int $id, ?string $path): bool;
+
     /** @return bool false, gdy wina o takim id nie było */
     public function delete(int $id): bool;
 }

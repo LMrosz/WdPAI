@@ -24,7 +24,7 @@ final class PostgresWineRepository implements WineRepositoryInterface, WineWrite
     private const UNIQUE_VIOLATION = '23505';
 
     private const COLUMNS = 'id, name, category, type, grape, vintage, abv, award, notes, story,
-        aroma, palate, finish, serving, cellaring, price';
+        aroma, palate, finish, serving, cellaring, price, image_path';
 
     public function __construct(private readonly PDO $database)
     {
@@ -163,6 +163,27 @@ final class PostgresWineRepository implements WineRepositoryInterface, WineWrite
         }
     }
 
+    public function findImagePath(int $id): ?string
+    {
+        $statement = $this->database->prepare('SELECT image_path FROM wines WHERE id = :id');
+        $statement->execute(['id' => $id]);
+        $path = $statement->fetchColumn();
+
+        return is_string($path) ? $path : null;
+    }
+
+    public function changeImage(int $id, ?string $path): bool
+    {
+        $statement = $this->database->prepare(
+            'UPDATE wines SET image_path = :path, updated_at = CURRENT_TIMESTAMP WHERE id = :id'
+        );
+        $statement->bindValue('path', $path);
+        $statement->bindValue('id', $id, PDO::PARAM_INT);
+        $statement->execute();
+
+        return $statement->rowCount() > 0;
+    }
+
     /** Usuwa wino (potrawy znikają razem z nim dzięki ON DELETE CASCADE); false, gdy nie istniało. */
     public function delete(int $id): bool
     {
@@ -210,6 +231,7 @@ final class PostgresWineRepository implements WineRepositoryInterface, WineWrite
                 'serving' => $row['serving'],
                 'cellaring' => $row['cellaring'],
                 'pairings' => $pairings[$id] ?? [],
+                'image_path' => $row['image_path'],
             ]);
         }
 

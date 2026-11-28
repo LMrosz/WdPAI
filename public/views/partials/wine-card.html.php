@@ -8,9 +8,15 @@
 $headingTag = $headingTag ?? 'h2';
 ?>
 <article class="card card--wine wine--<?= $e($wine->category) ?>">
-    <div class="card-visual" aria-hidden="true">
-        <?php require __DIR__ . '/wine-bottle.html.php'; ?>
-    </div>
+    <?php if ($wine->imageUrl() !== null): ?>
+        <div class="card-visual card-visual--photo">
+            <img src="<?= $e($wine->imageUrl()) ?>" alt="<?= $e($wine->title()) ?>" loading="lazy" decoding="async">
+        </div>
+    <?php else: ?>
+        <div class="card-visual" aria-hidden="true">
+            <?php require __DIR__ . '/wine-bottle.html.php'; ?>
+        </div>
+    <?php endif; ?>
     <div class="card-body">
         <?php if ($wine->award !== null && $wine->award !== ''): ?>
             <p class="card-badge"><?= $e($wine->award) ?></p>
