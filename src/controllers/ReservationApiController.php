@@ -145,7 +145,7 @@ final class ReservationApiController extends AppController
     /** Jedno połączenie na żądanie, wspólne dla obu repozytoriów. */
     private function pdo(): PDO
     {
-        return $this->pdo ??= (new Database())->connect();
+        return $this->pdo ??= Database::shared();
     }
 
     private function tastings(): TastingRepositoryInterface

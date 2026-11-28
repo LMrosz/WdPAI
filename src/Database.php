@@ -15,6 +15,9 @@ use RuntimeException;
  */
 final class Database
 {
+    /** Jedno połączenie na żądanie, wspólne dla wszystkich repozytoriów (patrz shared()). */
+    private static ?PDO $shared = null;
+
     /** @var array{host: string, port: int, name: string, user: string, password: string} */
     private array $config;
 
@@ -22,6 +25,15 @@ final class Database
     public function __construct(?array $config = null)
     {
         $this->config = $config ?? require dirname(__DIR__) . '/config/database.php';
+    }
+
+    /**
+     * Wspólne połączenie z bazą (singleton): pierwsze wywołanie je otwiera, kolejne zwracają ten sam
+     * obiekt PDO. Dzięki temu jedno żądanie HTTP otwiera jedno połączenie, a nie osobne dla każdego kontrolera.
+     */
+    public static function shared(): PDO
+    {
+        return self::$shared ??= (new self())->connect();
     }
 
     public function connect(): PDO

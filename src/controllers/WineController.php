@@ -18,7 +18,7 @@ final class WineController extends AppController
 
     public function __construct(?WineRepositoryInterface $wines = null)
     {
-        $this->wines = $wines ?? new PostgresWineRepository((new Database())->connect());
+        $this->wines = $wines ?? new PostgresWineRepository(Database::shared());
     }
 
     /**

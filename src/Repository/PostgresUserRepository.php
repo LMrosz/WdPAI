@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Repository;
 
+use App\Database;
 use App\Exception\EmailAlreadyUsedException;
 use App\Model\Email;
 use App\Model\Role;
@@ -11,11 +12,27 @@ use App\Model\User;
 use PDO;
 use PDOException;
 
-/** Konta z PostgreSQL (tabele users i roles). Cały SQL dotyczący użytkowników jest tutaj. */
+/**
+ * Konta z PostgreSQL (tabele users i roles). Cały SQL dotyczący użytkowników jest tutaj.
+ *
+ * Singleton: aplikacja korzysta z jednej instancji (instance()), która używa wspólnego połączenia
+ * Database::shared(). Konstruktor zostaje publiczny, żeby skrypty i testy mogły podać własne PDO.
+ */
 final class PostgresUserRepository implements UserRepositoryInterface
 {
-    /** Rola jest łączona JOIN-em, bo w users trzymamy tylko jej klucz obcy. */
-    private const SELECT = 'SELECT u.id, u.email, u.password_hash, u.display_name, u.is_blocked, u.created_at, r.code AS role
+    private static ?self $instance = null;
+
+    /**
+     * Minimalny zestaw kolumn: bez skrótu hasła. Skrót wczytujemy tylko tam, gdzie jest potrzebny
+     * (logowanie i świeżo założone konto), więc lista kont i sprawdzanie sesji go nie pobierają.
+     * Rola jest łączona JOIN-em, bo w users trzymamy tylko jej klucz obcy.
+     */
+    private const SELECT = "SELECT u.id, u.email, '' AS password_hash, u.display_name, u.is_blocked, u.created_at, r.code AS role
+        FROM users u
+        JOIN roles r ON r.id = u.role_id";
+
+    /** To samo, ale ze skrótem hasła (logowanie). */
+    private const SELECT_WITH_HASH = 'SELECT u.id, u.email, u.password_hash, u.display_name, u.is_blocked, u.created_at, r.code AS role
         FROM users u
         JOIN roles r ON r.id = u.role_id';
 
@@ -23,6 +40,12 @@ final class PostgresUserRepository implements UserRepositoryInterface
 
     public function __construct(private readonly PDO $database)
     {
+    }
+
+    /** Jedyna instancja używana przez aplikację (tworzona przy pierwszym użyciu). */
+    public static function instance(): self
+    {
+        return self::$instance ??= new self(Database::shared());
     }
 
     public function findById(int $id): ?User
@@ -35,7 +58,7 @@ final class PostgresUserRepository implements UserRepositoryInterface
 
     public function findByEmail(Email $email): ?User
     {
-        $statement = $this->database->prepare(self::SELECT . ' WHERE u.email = :email');
+        $statement = $this->database->prepare(self::SELECT_WITH_HASH . ' WHERE u.email = :email');
         $statement->execute(['email' => $email->value()]);
 
         return $this->mapRow($statement->fetch());
@@ -64,7 +87,10 @@ final class PostgresUserRepository implements UserRepositoryInterface
             throw $exception;
         }
 
-        return $this->findById((int) $statement->fetchColumn())
+        $created = $this->database->prepare(self::SELECT_WITH_HASH . ' WHERE u.id = :id');
+        $created->execute(['id' => (int) $statement->fetchColumn()]);
+
+        return $this->mapRow($created->fetch())
             ?? throw new \LogicException('Konto zniknęło tuż po zapisie.');
     }
 

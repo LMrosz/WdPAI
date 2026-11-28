@@ -12,12 +12,14 @@ use App\Model\User;
 /** Dostęp do kont użytkowników; kontrolery i serwisy zależą tylko od tego interfejsu. */
 interface UserRepositoryInterface
 {
+    /** Konto po id. Obiekt nie zawiera skrótu hasła (`passwordHash` jest pusty), bo do sprawdzania sesji nie jest potrzebny. */
     public function findById(int $id): ?User;
 
+    /** Konto po adresie e-mail, razem ze skrótem hasła: używane wyłącznie do logowania. */
     public function findByEmail(Email $email): ?User;
 
     /**
-     * Zakłada konto i zwraca zapisany obiekt z nadanym id.
+     * Zakłada konto i zwraca zapisany obiekt z nadanym id (jedyny odczyt, poza findByEmail, który zawiera skrót hasła).
      *
      * @throws EmailAlreadyUsedException gdy adres jest już zajęty
      */
