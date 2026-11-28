@@ -24,6 +24,7 @@ Aktualnie aplikacja obsługuje:
 - JavaScript (Lab 10) w `public/js/app.js` i `public/js/modules/`: walidacja formularzy w przeglądarce (te same reguły co serwer), pokazywanie błędów w DOM, przycisk „Pokaż hasło”, licznik znaków i wyszukiwarka win; teksty dla JS są w `config/content.php` (sekcje `validation`, `forms`, `js`, a w panelu użytkowników także `admin` i `roles`), a bez JS strona działa jak wcześniej,
 - panel użytkowników (Lab 11) pod `/admin/users` (`AdminController`, `public/js/users.js`) i API JSON (`UserApiController`: `GET /api/users`, `DELETE /api/users/{id}`, `PATCH /api/users/{id}/block`, `PATCH /api/users/{id}/role`) z blokowaniem kont (`users.is_blocked`), tokenem CSRF w nagłówku `X-CSRF-Token` i regułami w `App\Service\UserAdminService`; błędy pod `/api/` są w JSON (`ErrorController::showJson`, teksty w `api_errors`).
 - rezerwacje degustacji na `/tastings` (`public/js/reservations.js`, `ReservationApiController`: `GET /api/tasting-sessions`, `POST /api/reservations`, `DELETE /api/reservations/{id}`): rezerwacja działa tylko z JavaScriptem, zapis idzie w transakcji z `SELECT ... FOR UPDATE` na wierszu terminu (`PostgresReservationRepository::book`), błędy biznesowe to `ReservationException` z powodem mapowanym na kod HTTP w kontrolerze; nie liczymy miejsc w PHP ani w innym zapytaniu niż widok `tasting_session_availability`.
+- zabezpieczenia z Lab 12 (Security Bingo A1–E5; tabela dowodów jest w README, sekcja „Bezpieczeństwo (Lab 12)”): HTTPS (nginx z certyfikatem samopodpisanym, przekierowanie z HTTP, `FORCE_HTTPS`, `AppController::requireSecureConnection()`), limit prób logowania (`App\Service\LoginThrottle`: 5 błędów na parę e-mail+IP albo 20 na IP w 15 minut, odpowiedź 429 z `Retry-After`), dziennik nieudanych logowań bez haseł (tabela `failed_logins`, `PostgresFailedLoginRepository`, linia `[security]` w logu), singleton `PostgresUserRepository::instance()` na wspólnym połączeniu `Database::shared()` oraz skrót hasła pobierany tylko przy logowaniu (`findByEmail`, `create`).
 
 Baza PostgreSQL jest podłączona dla win (`wines`, `wine_pairings`), degustacji (`tastings`, `tasting_wines`, `tasting_sessions`; wolne miejsca czyta widok `tasting_session_availability`), rezerwacji (`reservations` przez `PostgresReservationRepository`) i kont (`users`, `roles` przez `PostgresUserRepository`). Uploadu i edycji treści w panelu jeszcze nie ma — nie opisuj ich jako istniejących.
 
@@ -42,7 +43,7 @@ Baza PostgreSQL jest podłączona dla win (`wines`, `wine_pairings`), degustacji
 .
 ├── bin/                       # skrypty CLI: demo-wines-crud.php, demo-repositories.php, demo-auth.php (uruchamiane w kontenerze php)
 ├── config/                    # content.php (teksty i dane marki), database.php (połączenie z bazą ze zmiennych środowiskowych)
-├── database/                  # skrypty SQL: 01-schema, 02-indexes, 03-seed, 04-user-administration, 05-tasting-availability (wykonywane raz przy pierwszym starcie bazy; 04 i 05 można też uruchomić na istniejącej bazie)
+├── database/                  # skrypty SQL: 01-schema, 02-indexes, 03-seed, 04-user-administration, 05-tasting-availability, 06-login-security (wykonywane raz przy pierwszym starcie bazy; 04, 05 i 06 można też uruchomić na istniejącej bazie)
 ├── docker/
 │   ├── db/                    # obraz PostgreSQL
 │   ├── nginx/                 # obraz i konfiguracja Nginx
@@ -78,7 +79,7 @@ Usługi Docker Compose:
 
 | Usługa | Rola | Port na hoście |
 |---|---|---|
-| `server` | Nginx, document root `public/` | `8080` |
+| `server` | Nginx, document root `public/`, HTTPS z certyfikatem samopodpisanym | `8080` (przekierowanie na HTTPS), `8443` (HTTPS) |
 | `php` | PHP-FPM z Xdebugiem (przy starcie wykonuje `composer dump-autoload`) | Xdebug: `9003` (połączenie z IDE) |
 | `db` | PostgreSQL (z healthcheckiem; kod PHP łączy się przez `db:5432`, a `5433` jest dla klientów na hoście) | `POSTGRES_PORT` (domyślnie `5433`) |
 | `mailpit` | podgląd wysyłanych e-maili (dev) | `MAILPIT_PORT` (domyślnie `8025`) |
@@ -185,6 +186,9 @@ Cały wygląd mieści się w jednym arkuszu `public/css/style.css`, zgodnym z sy
 - Nie dodawaj frameworka ani dużej biblioteki bez wyraźnej potrzeby i zgody użytkownika.
 - Sekrety umieszczaj w `.env`; nigdy nie commituj haseł, tokenów ani danych dostępowych. Nowa zmienna środowiskowa trafia też do `.env.example` (bez prawdziwej wartości) i do README.
 - Hasła przechowuj wyłącznie jako `password_hash()`, sprawdzaj przez `password_verify()` i nigdy ich nie loguj ani nie odsyłaj do widoku; rolę nowego konta ustawia serwer (`GUEST`), nie formularz.
+- Repozytoria użytkowników i połączenie z bazą bierz przez `PostgresUserRepository::instance()` i `Database::shared()`, a nie przez `new Database()`; skrót hasła pobiera tylko `findByEmail()` (logowanie).
+- Do logów i dziennika nie przekazuj haseł, tokenów ani całych tablic `$_POST`; nie wyłączaj `zend.exception_ignore_args` ani `display_errors` w `docker/php/security.ini` i `public/index.php`.
+- Nowe pole formularza z danymi od użytkownika dostaje limit długości w regułach `Validator`, a wartość w widoku jest escapowana przez `$e()`.
 - Nie edytuj `vendor/` ręcznie.
 - Zachowuj zakres zadania i nie zmieniaj niezwiązanych plików.
 - Pliki w repozytorium mają końcówki linii zgodne z ustawieniami użytkownika (Windows, CRLF w katalogu roboczym) — nie zmieniaj ich masowo.
@@ -207,9 +211,9 @@ Typowy porządek prac:
 docker compose up --build -d
 ```
 
-Aplikacja jest dostępna pod `http://localhost:8080` (port ustawiony w `docker-compose.yaml`).
+Aplikacja jest dostępna pod `https://localhost:8443` (certyfikat samopodpisany z obrazu nginx, przeglądarka pokaże ostrzeżenie); `http://localhost:8080` przekierowuje na HTTPS. Zmienna `FORCE_HTTPS=0` w `.env` wyłącza wymuszanie HTTPS i pozwala pracować pod `http://localhost:8080`. Zmiany w `docker/` wymagają `docker compose up --build -d`.
 
-Na istniejącą bazę (wolumen już istnieje) migracje z Lab 11 dopisuje się poleceniami `docker compose exec db psql -U app -d app -v ON_ERROR_STOP=1 -f /docker-entrypoint-initdb.d/04-user-administration.sql` i tak samo `.../05-tasting-availability.sql`. Kod czyta widok z `05`, więc bez tej migracji `/tastings` nie działa. Ścieżka pliku jest wewnątrz kontenera, więc polecenie działa w każdej powłoce (bez przekierowania `<`).
+Na istniejącą bazę (wolumen już istnieje) migracje dopisuje się poleceniami `docker compose exec db psql -U app -d app -v ON_ERROR_STOP=1 -f /docker-entrypoint-initdb.d/04-user-administration.sql` i tak samo `.../05-tasting-availability.sql` oraz `.../06-login-security.sql`. Kod czyta widok z `05` i tabelę z `06`, więc bez tych migracji `/tastings` i logowanie nie działają. Ścieżka pliku jest wewnątrz kontenera, więc polecenie działa w każdej powłoce (bez przekierowania `<`).
 
 Przydatne polecenia:
 

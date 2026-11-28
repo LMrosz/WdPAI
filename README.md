@@ -21,6 +21,7 @@ VinoKeep to aplikacja webowa dla winnic: prezentuje ofertę (wina, degustacje, h
 | Dostępność (WCAG) | Semantyczne znaczniki, widoczny fokus, kontrast sprawdzony w obu motywach narzędziem axe | częściowo, pełny audyt planowany w przyszłości |
 | Baza PostgreSQL | Schemat z 8 tabelami (użytkownicy, role, wina, degustacje, rezerwacje), indeksy, dane demonstracyjne i warstwa danych przez PDO (encje, repozytoria, DTO, Value Object) | gotowe, aplikacja czyta z bazy wina, degustacje i konta, a zapisuje konta oraz wina |
 | Role użytkowników | `GUEST`, `CELLAR_MASTER`, `ADMIN` (może być ich wielu) i `WINERY_OWNER` (jeden, wymuszone indeksem w bazie) z uprawnieniami sprawdzanymi po stronie serwera (401 bez logowania, 403 przy niewłaściwej roli) | gotowe |
+| Bezpieczeństwo (Lab 12) | HTTPS z przekierowaniem z HTTP, limit prób logowania (429 i `Retry-After`), dziennik nieudanych logowań bez haseł, singleton repozytorium użytkowników, błędy tylko w logu serwera; tabela dowodów dla wszystkich punktów A1–E5 w sekcji „Bezpieczeństwo (Lab 12)” | gotowe (Lab 12) |
 | Rezerwacje degustacji | Zalogowany użytkownik rezerwuje i anuluje miejsca na `/tastings` bez przeładowania strony (`POST /api/reservations`, `DELETE /api/reservations/{id}`); liczbę wolnych miejsc zwraca widok bazy, a zapis działa w transakcji z blokadą terminu, więc nie da się sprzedać więcej miejsc, niż jest | gotowe (Lab 8 i 11) |
 | Upload, edycja treści | Zdjęcia, edycja treści w panelu | planowane w przyszłości |
 
@@ -46,11 +47,13 @@ docker compose up --build -d
 
 | Usługa | Adres |
 |---|---|
-| Aplikacja | http://localhost:8080 |
+| Aplikacja | https://localhost:8443 (http://localhost:8080 przekierowuje na HTTPS) |
 | Mailpit | http://localhost:8025 |
 | pgAdmin | http://localhost:5050 |
 
-Porty i dane dostępowe są w pliku `.env`, który powstaje z wzoru `.env.example` (sam `.env` jest w `.gitignore`): `POSTGRES_DB`, `POSTGRES_USER`, `POSTGRES_PASSWORD`, `POSTGRES_PORT`, `MAILPIT_PORT`, `PGADMIN_PORT`, `PGADMIN_DEFAULT_EMAIL` i `PGADMIN_DEFAULT_PASSWORD`. Bez pliku `.env` compose używa tych samych wartości domyślnych. Zatrzymanie: `docker compose down`.
+Aplikacja działa przez HTTPS z certyfikatem samopodpisanym, który powstaje przy budowie obrazu nginx (tylko do pracy lokalnej), więc przeglądarka pokaże ostrzeżenie: wybierz „Zaawansowane”, a potem „Przejdź do localhost”. Jeśli wolisz zwykłe HTTP, ustaw w `.env` `FORCE_HTTPS=0` i uruchom `docker compose up -d`; wtedy aplikacja działa pod `http://localhost:8080` (szczegóły w „Bezpieczeństwo (Lab 12)”).
+
+Porty i dane dostępowe są w pliku `.env`, który powstaje z wzoru `.env.example` (sam `.env` jest w `.gitignore`): `POSTGRES_DB`, `POSTGRES_USER`, `POSTGRES_PASSWORD`, `POSTGRES_PORT`, `MAILPIT_PORT`, `FORCE_HTTPS`, `HTTPS_PORT`, `PGADMIN_PORT`, `PGADMIN_DEFAULT_EMAIL` i `PGADMIN_DEFAULT_PASSWORD`. Bez pliku `.env` compose używa tych samych wartości domyślnych. Zatrzymanie: `docker compose down`.
 
 Przy pierwszym starcie z pustym wolumenem bazy tabele i dane demonstracyjne tworzą się same. Jeśli wolumen `pg-data` już istnieje, trzeba załadować schemat ręcznie (patrz „Baza danych”). Po aktualizacji z wcześniejszego laboratorium wystarczy dopisać do działającej bazy migrację z Lab 11:
 
@@ -58,11 +61,14 @@ Przy pierwszym starcie z pustym wolumenem bazy tabele i dane demonstracyjne twor
 docker compose exec db psql -U app -d app -v ON_ERROR_STOP=1 -f /docker-entrypoint-initdb.d/04-user-administration.sql
 ```
 
-Rezerwacje degustacji (widok bazy i terminy demonstracyjne) dopisuje do działającej bazy migracja `05`; aplikacja czyta z tego widoku, więc **bez niej `/tastings` przestaje działać**:
+Rezerwacje degustacji (widok bazy i terminy demonstracyjne) dopisuje do działającej bazy migracja `05`; aplikacja czyta z tego widoku, więc **bez niej `/tastings` przestaje działać**. Dziennik nieudanych logowań z Lab 12 dopisuje migracja `06`; **bez niej logowanie przestaje działać**, bo każde sprawdzenie limitu prób czyta tę tabelę:
 
 ```bash
 docker compose exec db psql -U app -d app -v ON_ERROR_STOP=1 -f /docker-entrypoint-initdb.d/05-tasting-availability.sql
+docker compose exec db psql -U app -d app -v ON_ERROR_STOP=1 -f /docker-entrypoint-initdb.d/06-login-security.sql
 ```
+
+Zmiany z Lab 12 dotyczą też obrazów (nginx z TLS i ustawienia PHP), więc po pobraniu kodu uruchom `docker compose up --build -d`.
 
 ## Baza danych (PostgreSQL)
 
@@ -175,6 +181,7 @@ Indeksy poza kluczami głównymi i ograniczeniami `UNIQUE` (PostgreSQL nie tworz
 | `database/03-seed.sql` | dane demonstracyjne: 3 role, 3 konta, 10 win z potrawami, 3 degustacje z terminami i 2 rezerwacje |
 | `database/04-user-administration.sql` | Lab 11: rola `ADMIN`, kolumna `users.is_blocked`, indeks jednego właściciela i konto demonstracyjne administratora; można go uruchomić ponownie bez szkody |
 | `database/05-tasting-availability.sql` | Lab 8 i 11: widok `tasting_session_availability` (zajęte i wolne miejsca w terminie) oraz terminy demonstracyjne na najbliższe cztery soboty (liczone od bieżącego tygodnia); można go uruchomić ponownie bez szkody |
+| `database/06-login-security.sql` | Lab 12: tabela `failed_logins` (dziennik nieudanych logowań: adres e-mail, IP, powód, przeglądarka, czas; bez haseł) z indeksami pod limit prób; można go uruchomić ponownie bez szkody |
 
 Katalog `database/` jest zamontowany w kontenerze `db` jako `/docker-entrypoint-initdb.d`. PostgreSQL wykonuje te pliki **tylko raz, przy pierwszym starcie z pustym wolumenem** `pg-data`, w kolejności nazw. Jeśli wolumen już istnieje (baza była uruchomiona wcześniej), załaduj schemat ręcznie. Ścieżki wskazują plik wewnątrz kontenera, więc polecenia działają w każdej powłoce:
 
@@ -185,7 +192,7 @@ docker compose exec db psql -U app -d app -v ON_ERROR_STOP=1 \
   -f /docker-entrypoint-initdb.d/03-seed.sql
 ```
 
-Skrypty 01–03 nie są powtarzalne (tworzą tabele), a `04` i `05` są. Aby zacząć od zera i skasować dane bazy: `docker compose down -v`, a potem `docker compose up -d`.
+Skrypty 01–03 nie są powtarzalne (tworzą tabele), a `04`, `05` i `06` są. Aby zacząć od zera i skasować dane bazy: `docker compose down -v`, a potem `docker compose up -d`.
 
 ### Warstwa danych (Lab 8)
 
@@ -203,7 +210,8 @@ Repozytoria (interfejs plus implementacja dla PostgreSQL):
 |-----------|---------------|-----------|
 | `WineRepositoryInterface` | `PostgresWineRepository` (oraz `ContentWineRepository` z pliku) | odczyt win (`findAll`, `findById`, `findRelated`) |
 | `WineWriterInterface` | `PostgresWineRepository` | `create(WineData)`, `update(id, WineData)` i `delete(id)` w transakcjach, `findDataById` do formularza edycji; duplikat nazwy i rocznika rzuca `DuplicateWineException` |
-| `UserRepositoryInterface` | `PostgresUserRepository` | `users JOIN roles`, `create` (duplikat adresu rzuca `EmailAlreadyUsedException`), `delete` |
+| `UserRepositoryInterface` | `PostgresUserRepository` (singleton: `PostgresUserRepository::instance()`) | `users JOIN roles`, `create` (duplikat adresu rzuca `EmailAlreadyUsedException`), `delete`; skrót hasła zwraca tylko `findByEmail` (logowanie) i `create`, a `findById` i `findAll` go nie pobierają |
+| `FailedLoginRepositoryInterface` | `PostgresFailedLoginRepository` | dziennik `failed_logins`: `record`, `recentForAccount`, `recentForIp` (dla limitu prób) |
 | `TastingRepositoryInterface` | `PostgresTastingRepository` | `tasting_wines JOIN wines` oraz widok `tasting_session_availability` (terminy z wolnymi miejscami: `findUpcomingSessions`, `findSession`) |
 | `ReservationRepositoryInterface` | `PostgresReservationRepository` | `book()` i `cancel()` w transakcji z `SELECT ... FOR UPDATE`, `findConfirmedByUser()`; błędy biznesowe jako `ReservationException` z powodem |
 
@@ -214,6 +222,7 @@ Skrypty pokazowe uruchamiane w kontenerze `php`:
 ```bash
 docker compose exec php php bin/demo-repositories.php   # Email, użytkownicy z rolą, degustacje z terminami (konto demo jest od razu usuwane)
 docker compose exec php php bin/demo-auth.php           # rejestracja ze skrótem hasła, logowanie, uprawnienia ról (konto demo jest od razu usuwane)
+docker compose exec php php bin/demo-security.php       # Lab 12: singleton, prepared statements, minimalne dane konta, limit prób i dziennik (konto demo jest od razu usuwane)
 ```
 
 ### Sprawdzenie połączenia i bazy
@@ -279,9 +288,9 @@ Użycie:
 
 1. Ustaw punkt przerwania, np. w `WineController::show` w `src/controllers/WineController.php`.
 2. Uruchom konfigurację „Listen for Xdebug (Docker)” (F5).
-3. Otwórz http://localhost:8080/wines/1. Wykonanie zatrzyma się na punkcie przerwania i będzie można oglądać zmienne oraz wykonywać kod krok po kroku.
+3. Otwórz https://localhost:8443/wines/1 (albo http://localhost:8080/wines/1 przy `FORCE_HTTPS=0`). Wykonanie zatrzyma się na punkcie przerwania i będzie można oglądać zmienne oraz wykonywać kod krok po kroku.
 
-W PhpStorm wystarczy w ustawieniach PHP dodać serwer `localhost:8080` z mapowaniem ścieżek katalogu projektu na `/app`, a port debuggera ustawić na `9003`. Na Linuxie `host.docker.internal` działa dzięki wpisowi `extra_hosts` w `docker-compose.yaml`. Gdy debugowanie nie jest potrzebne, w `docker/php/xdebug.ini` można ustawić `xdebug.mode = off`.
+W PhpStorm wystarczy w ustawieniach PHP dodać serwer `localhost:8443` (lub `localhost:8080` przy `FORCE_HTTPS=0`) z mapowaniem ścieżek katalogu projektu na `/app`, a port debuggera ustawić na `9003`. Na Linuxie `host.docker.internal` działa dzięki wpisowi `extra_hosts` w `docker-compose.yaml`. Gdy debugowanie nie jest potrzebne, w `docker/php/xdebug.ini` można ustawić `xdebug.mode = off`.
 
 ## Struktura projektu
 
@@ -289,13 +298,14 @@ W PhpStorm wystarczy w ustawieniach PHP dodać serwer `localhost:8080` z mapowan
 my-app/
 ├── bin/
 │   ├── demo-auth.php        # pokaz uwierzytelniania: rejestracja, logowanie, uprawnienia ról
+│   ├── demo-security.php    # pokaz zabezpieczeń z Lab 12: singleton, limit prób, dziennik nieudanych logowań
 │   ├── demo-repositories.php # pokaz warstwy danych: użytkownicy, Value Object Email, degustacje
 │   └── demo-wines-crud.php  # pokaz operacji CRUD na repozytorium win (DTO WineData)
 ├── config/
 │   ├── content.php          # wszystkie teksty i dane marki (domyślnie Corvo Bianco)
 │   └── database.php         # dane połączenia z bazą (ze zmiennych środowiskowych)
 ├── database/                # skrypty SQL: schemat, indeksy, dane demonstracyjne, administracja użytkownikami (04), widok wolnych miejsc (05)
-├── docker/                  # Dockerfile'e i konfiguracja nginx, php, db
+├── docker/                  # Dockerfile'e i konfiguracja: nginx (szablon z HTTPS, wspólne nagłówki), php (security.ini, xdebug.ini), db
 ├── public/
 │   ├── index.php            # front controller, definicje tras
 │   ├── css/style.css        # design system „Terroir & Heritage Luxe”, tokeny obu motywów
@@ -444,7 +454,7 @@ Strona `/tastings` nadal jest renderowana po stronie serwera (lista ofert i term
 
 ## Uwierzytelnianie i sesje (Lab 9)
 
-**Sesja.** `App\Service\Session::start()` konfiguruje ciasteczko sesji raz, w `public/index.php`, zanim ruszy routing: bez daty ważności (znika z zamknięciem przeglądarki), `HttpOnly` (niedostępne dla JavaScriptu), `SameSite=Lax` i `Secure` tylko przy HTTPS, żeby lokalnie po `http://localhost` sesja działała. W sesji jest tylko `user` (id, e-mail, nazwa, rola, czas logowania) i token CSRF, nigdy hasło ani jego skrót.
+**Sesja.** `App\Service\Session::start()` konfiguruje ciasteczko sesji raz, w `public/index.php`, zanim ruszy routing: bez daty ważności (znika z zamknięciem przeglądarki), `HttpOnly` (niedostępne dla JavaScriptu), `SameSite=Lax` i `Secure` (przeglądarka nie wyśle ciasteczka przez HTTP); `use_strict_mode` odrzuca identyfikator sesji wymyślony przez klienta. W sesji jest tylko `user` (id, e-mail, nazwa, rola, czas logowania) i token CSRF, nigdy hasło ani jego skrót.
 
 **Rejestracja i logowanie** (`SecurityController`, logika w `AuthService`):
 
@@ -481,7 +491,7 @@ Akcje chronione zaczynają się od `requireLogin()`, `requireUser()` albo `requi
 | XSS | `htmlspecialchars` w każdym widoku (`$e`, `$t`) |
 | Kradzież hasła z bazy | tylko skróty `password_hash`, nigdy jawne hasło |
 | Session fixation | `session_regenerate_id(true)` po zalogowaniu |
-| Kradzież ciasteczka | `HttpOnly`, `SameSite=Lax`, `Secure` przy HTTPS |
+| Kradzież ciasteczka | `HttpOnly`, `SameSite=Lax`, `Secure` (aplikacja działa przez HTTPS) |
 | CSRF | token w każdym POST, `hash_equals`, wylogowanie przez POST |
 | Enumeracja kont | jeden komunikat i stały czas przy logowaniu |
 | Podniesienie uprawnień | rola nigdy z formularza, uprawnienia sprawdzane po stronie serwera (401/403) |
@@ -490,7 +500,57 @@ Akcje chronione zaczynają się od `requireLogin()`, `requireUser()` albo `requi
 | Open redirect | `redirect()` przyjmuje tylko ścieżki wewnętrzne (zaczynające się od jednego `/`) |
 | Wycieki informacji | błędy techniczne tylko w logu, użytkownik widzi ogólną stronę 500 |
 
-Nie ma jeszcze ograniczania liczby prób logowania ani limitu czasu bezczynności sesji; to możliwe usprawnienia na później.
+Limit prób logowania i HTTPS opisuje sekcja „Bezpieczeństwo (Lab 12)”. Nie ma jeszcze limitu czasu bezczynności sesji; to możliwe usprawnienie na później.
+
+## Bezpieczeństwo (Lab 12)
+
+Lab 12 to „Security Bingo”: 25 punktów (A1–E5), a przy każdym ma być dowód, że zabezpieczenie istnieje. Poniżej jest tabela dowodów: co robi kod, gdzie to jest i jak to sprawdzić. Poleceniem `docker compose exec php php bin/demo-security.php` można obejrzeć na żywo singleton, prepared statements, minimalny zestaw danych konta, skrót hasła, limit prób i dziennik (skrypt sprząta po sobie).
+
+### Nowe elementy
+
+- **HTTPS (E1).** Nginx ma drugi serwer na porcie 443 z certyfikatem samopodpisanym (tworzy go `docker/nginx/Dockerfile`, tylko do pracy lokalnej), a port 80 przy `FORCE_HTTPS=1` odpowiada `301` na `https://localhost:8443`. Zmienne `FORCE_HTTPS` i `HTTPS_PORT` ustawia `docker-compose.yaml` (wartości z `.env`). Aplikacja ma drugą linię obrony: przy `FORCE_HTTPS=1` logowanie, rejestracja i wylogowanie przez zwykłe HTTP kończą się 403 (`AppController::requireSecureConnection()`), a ciasteczko sesji jest zawsze `Secure`. Nagłówek HSTS jest w konfiguracji tylko jako komentarz do odkomentowania na produkcji, bo HSTS dotyczy całej nazwy `localhost` (także innych lokalnych projektów).
+- **Limit prób logowania (A4).** `LoginThrottle` liczy nieudane próby z ostatnich 15 minut: 5 błędów dla pary „ten sam adres e-mail z tego samego IP” albo 20 błędów z jednego IP (zgadywanie wielu kont) wstrzymuje logowanie. Odpowiedź to `429` z nagłówkiem `Retry-After` (sekundy) i komunikatem „Zbyt wiele nieudanych prób… za N min.”. Blokada jest sprawdzana przed weryfikacją hasła, więc w jej trakcie nawet poprawne hasło nie otwiera konta, a zablokowane próby nie przedłużają blokady. Blokada dotyczy pary, a nie samego konta, żeby obcy człowiek nie mógł zablokować cudzego konta jego właścicielowi, który loguje się z innego miejsca. Adres IP pochodzi z `REMOTE_ADDR`, a nie z nagłówka `X-Forwarded-For` (klient może go podrobić); za zaufanym load balancerem trzeba by go skonfigurować osobno.
+- **Dziennik nieudanych prób (E5).** Każda nieudana próba (zły e-mail lub hasło, konto zablokowane) trafia do tabeli `failed_logins`: adres e-mail małymi literami, IP, powód (`invalid_credentials` albo `account_blocked`), przeglądarka i czas. Tabela nie ma kolumny na hasło, a `LoginThrottle::recordFailure()` w ogóle go nie dostaje. Ta sama informacja trafia jako jedna linia `[security] failed login: email=… ip=… reason=…` do logu kontenera. Ostatnie próby: `docker compose exec db psql -U app -d app -c "SELECT email, ip_address, reason, attempted_at FROM failed_logins ORDER BY id DESC LIMIT 10"`, a log: `docker compose logs php | grep "\[security\]"`.
+- **Singleton (D1).** `Database::shared()` otwiera jedno połączenie z bazą na żądanie, a `PostgresUserRepository::instance()` zwraca jedną instancję repozytorium użytkowników na tym połączeniu. Kontrolery korzystają z nich zamiast tworzyć własne połączenia. Konstruktor zostaje publiczny, żeby skrypty i testy mogły podać własne `PDO`.
+- **Minimalny zestaw danych (C5).** Tylko `findByEmail()` (logowanie) i `create()` pobierają skrót hasła. `findById()` (sprawdzanie sesji przy każdym żądaniu) i `findAll()` (panel kont) zwracają obiekt z pustym skrótem, więc skrót nie krąży po aplikacji bez potrzeby.
+- **Błędy i logi (A3, E4).** `docker/php/security.ini` (oraz te same ustawienia w `public/index.php`) wyłącza `display_errors` i ustawia `zend.exception_ignore_args`. Ten drugi parametr ma znaczenie: bez niego ślad wyjątku w logu zawiera argumenty funkcji, więc awaria przy rejestracji zapisuje w logu jawne hasło z formularza (sprawdzone: z domyślnymi ustawieniami PHP w Dockerze hasło trafiało do logu, po zmianie już nie). Nginx dodaje nagłówki `X-Content-Type-Options`, `X-Frame-Options`, `Referrer-Policy` i ukrywa wersję serwera.
+
+### Tabela dowodów
+
+| Punkt | Zabezpieczenie | Gdzie | Jak sprawdzić |
+|---|---|---|---|
+| A1 | Ochrona przed SQL injection: tylko prepared statements, natywne (`ATTR_EMULATE_PREPARES=false`), bez sklejania SQL z danymi | `Database::connect()`, `prepare()` z parametrami w każdym repozytorium (`src/Repository`) | W logowaniu wpisz hasło `' OR '1'='1` albo adres `' OR 1=1 --`: 422, brak sesji; `/wines?type=' OR 1=1 --` daje 400; `bin/demo-security.php`, sekcja A1 |
+| A2 | Login i rejestracja przyjmują dane tylko przez POST | `public/index.php`: `post('/login')`, `post('/register')`, `post('/logout')` | `GET /login?email=…&password=…` pokazuje tylko formularz i nie loguje; `PUT /login` daje 404 |
+| A3 | Hasła nie trafiają do logów ani komunikatów błędów | `LoginThrottle::recordFailure()` nie przyjmuje hasła; `zend.exception_ignore_args` w `docker/php/security.ini` i `public/index.php` | Po nieudanym logowaniu `docker compose logs php` zawiera linię `[security]` bez hasła; strony błędów nie wypisują danych z formularza |
+| A4 | Limit prób logowania i blokada czasowa | `LoginThrottle`, `SecurityController::authenticate()` | 6 błędnych logowań na to samo konto daje 429 i `Retry-After`; `bin/demo-security.php`, sekcja A4 |
+| A5 | Sensowne kody HTTP | `ErrorController`, wyjątki `BadRequestException`, `UnauthorizedException`, `ForbiddenException` | `/wines/abc` to 400, `/account` bez logowania 401, POST bez tokenu CSRF 403, nieznany adres 404, błędne dane formularza 422, zbyt wiele prób 429 |
+| B1 | Nie zdradzam, czy e-mail istnieje w bazie | `AuthService::authenticate()`: jeden wynik `null` dla złego adresu i hasła, `password_verify` na skrócie zapasowym wyrównuje czas | Nieistniejący adres i złe hasło dają ten sam komunikat „Nieprawidłowy e-mail lub hasło.” |
+| B2 | Token CSRF w formularzu logowania | `SecurityController::authenticate()` zaczyna od `requireValidCsrf()`; ukryte pole `csrf_token` w widoku | POST `/login` bez tokenu albo z błędnym to 403 |
+| B3 | Regeneracja ID sesji po poprawnym logowaniu | `Session::signIn()`: `session_regenerate_id(true)`; `session.use_strict_mode` odrzuca id wymyślone przez klienta | Wartość `PHPSESSID` przed i po zalogowaniu jest inna, stare id przestaje działać |
+| B4 | Walidacja złożoności hasła | `SecurityController::REGISTER_RULES` (8–64 znaków, litera i cyfra, znak specjalny, do 72 bajtów) w `Validator` | Rejestracja z hasłem `abc` kończy się 422 z komunikatami przy polu |
+| B5 | Hasło nie trafia do widoków ani do `echo` i `var_dump` | `renderLogin()` i `renderRegister()` przekazują do widoku tylko e-mail (`old`); w kodzie nie ma `var_dump`, `print_r` ani `echo` z danymi | Po błędzie formularza pole hasła jest puste; `grep -rn -e var_dump -e print_r src public` nic nie zwraca |
+| C1 | Walidacja formatu e-mail po stronie serwera | reguła `email` w `Validator` oraz Value Object `Email` | Adres `to-nie-jest-email` daje 422 także po wyłączeniu JavaScriptu |
+| C2 | Token CSRF w formularzu rejestracji | `SecurityController::createAccount()`, `requireValidCsrf()` | POST `/register` bez tokenu to 403 |
+| C3 | Cookie sesyjne z flagą HttpOnly | `Session::start()`: `'httponly' => true` | W narzędziach przeglądarki (Application → Cookies) `PHPSESSID` ma `HttpOnly`; `document.cookie` go nie pokazuje |
+| C4 | Sprawdzenie, czy e-mail jest już w bazie przy rejestracji | `PostgresUserRepository::create()`: `UNIQUE` w bazie i `EmailAlreadyUsedException`, komunikat przy polu e-mail | Druga rejestracja tego samego adresu daje 422 „Konto z tym adresem e-mail już istnieje.”; sprawdzenie w bazie (a nie `SELECT` przed `INSERT`) działa też przy dwóch równoległych żądaniach |
+| C5 | Pobieranie z bazy minimalnego zestawu danych o użytkowniku | `PostgresUserRepository::SELECT` (bez `password_hash`) i `SELECT_WITH_HASH` tylko dla `findByEmail()` i `create()` | `bin/demo-security.php`, sekcja C5: `findById` zwraca pusty skrót |
+| D1 | UserRepository jako singleton | `PostgresUserRepository::instance()`, `Database::shared()`, `AppController::users()` | `bin/demo-security.php`, sekcja D1: ten sam obiekt i zero nowych połączeń |
+| D2 | Ograniczona długość danych wejściowych | `EMAIL_MAX_LENGTH` (254), `PASSWORD_MAX_LENGTH` (64) i `PASSWORD_MAX_BYTES` (72) w `SecurityController`; `VARCHAR` w bazie | E-mail dłuższy niż 254 znaków albo hasło dłuższe niż 64 daje 422 |
+| D3 | Cookie sesyjne z flagą Secure | `Session::start()`: `'secure' => isHttps() \|\| httpsRequired()` | Przez `https://localhost:8443` ciasteczko ma `Secure`; przez HTTP nie jest w ogóle wysyłane |
+| D4 | Escapowanie danych w widokach, ochrona przed XSS | `$e()` i `$t()` (`htmlspecialchars` z `ENT_QUOTES`) w każdym widoku, `JSON_HEX_TAG` w JSON-ie dla skryptów, `textContent` w JavaScripcie | Adres `"><img src=x onerror=alert(1)>@x.pl` w logowaniu wraca w formularzu jako tekst, bez uruchomienia skryptu |
+| D5 | Poprawne wylogowanie ze zniszczeniem sesji | `Session::destroy()`, `POST /logout` z tokenem CSRF | Po wylogowaniu stare `PHPSESSID` daje 401 na `/account`; `GET /logout` nie istnieje |
+| E1 | Logowanie i rejestracja tylko przez HTTPS | `docker/nginx/default.conf.template` (TLS i przekierowanie 301), `FORCE_HTTPS`, `AppController::requireSecureConnection()` | wejście na `http://localhost:8080/login` przenosi na `https://localhost:8443/login` (kod 301, widać w zakładce Network narzędzi przeglądarki); strona pod HTTPS odpowiada 200 |
+| E2 | Hasła zapisane jako hash przez `password_hash` | `AuthService::register()`: `password_hash(PASSWORD_DEFAULT)`, `User::verifyPassword()`: `password_verify` | `SELECT password_hash FROM users LIMIT 1` zwraca skrót zaczynający się od `$2y$` |
+| E3 | Cookie sesyjne z atrybutem SameSite | `Session::start()`: `'samesite' => 'Lax'` | Cookie `PHPSESSID` ma `SameSite=Lax` |
+| E4 | Brak stack trace i surowych błędów w produkcji | `public/index.php` (`catch Throwable`, `display_errors=0`), `ErrorController`, `docker/php/security.ini` | Strona błędu 500 (np. po `ALTER VIEW tasting_session_availability RENAME TO x` i wejściu na `/tastings`) pokazuje tylko ogólny komunikat, szczegóły są w `docker compose logs php` |
+| E5 | Logowanie nieudanych prób logowania, bez haseł, do audytu | tabela `failed_logins` (`database/06-login-security.sql`), `PostgresFailedLoginRepository`, linia `[security]` w logu | `SELECT * FROM failed_logins ORDER BY id DESC LIMIT 5` po kilku błędnych logowaniach |
+
+### Ograniczenia
+
+- Certyfikat jest samopodpisany, więc przeglądarka pokazuje ostrzeżenie; na produkcji trzeba podmienić go na prawdziwy (np. Let's Encrypt) i odkomentować HSTS.
+- Limit prób opiera się na adresie IP z połączenia. Za load balancerem wszystkie żądania mogą mieć jego adres, więc trzeba wtedy zaufać jego nagłówkowi (np. `X-Forwarded-For`) i skonfigurować to osobno.
+- Dziennik `failed_logins` rośnie bez końca; porządkowanie starych wpisów (np. po 90 dniach) to możliwe usprawnienie.
+- Logowanie nie ma jeszcze wygasania sesji po bezczynności ani uwierzytelniania dwuskładnikowego.
 
 ## Zmiana tekstów i marki
 
