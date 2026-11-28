@@ -14,7 +14,7 @@ final class TastingController extends AppController
 
     public function __construct(?TastingRepositoryInterface $tastings = null)
     {
-        $this->tastings = $tastings ?? new PostgresTastingRepository((new Database())->connect());
+        $this->tastings = $tastings ?? new PostgresTastingRepository(Database::shared());
     }
 
     /** GET /tastings – oferta degustacji z winami i najbliższymi terminami (z bazy). */

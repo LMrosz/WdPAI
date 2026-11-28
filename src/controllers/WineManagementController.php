@@ -47,7 +47,7 @@ final class WineManagementController extends AppController
 
     public function __construct((WineRepositoryInterface&WineWriterInterface)|null $wines = null)
     {
-        $this->wines = $wines ?? new PostgresWineRepository((new Database())->connect());
+        $this->wines = $wines ?? new PostgresWineRepository(Database::shared());
     }
 
     /** GET /wines/new – pusty formularz nowego wina (piwniczy, właściciel). */
