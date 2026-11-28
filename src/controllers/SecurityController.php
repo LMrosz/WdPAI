@@ -4,9 +4,13 @@ declare(strict_types=1);
 
 namespace App\Controller;
 
+use App\Database;
 use App\Exception\AccountBlockedException;
 use App\Exception\EmailAlreadyUsedException;
+use App\Repository\FailedLoginRepositoryInterface;
+use App\Repository\PostgresFailedLoginRepository;
 use App\Service\AuthService;
+use App\Service\LoginThrottle;
 use App\Service\Session;
 use App\Service\Validator;
 
@@ -42,10 +46,12 @@ final class SecurityController extends AppController
     ];
 
     private ?AuthService $auth = null;
+    private ?LoginThrottle $throttle = null;
 
     /** GET /login – formularz logowania (GUEST, CELLAR_MASTER, WINERY_OWNER). */
     public function login(): void
     {
+        $this->requireSecureConnection();
         $this->redirectIfLoggedIn();
         $this->renderLogin();
     }
@@ -55,10 +61,14 @@ final class SecurityController extends AppController
      * Brak pola albo zły token CSRF to 403, błędny format pól to 422 z komunikatami przy polach.
      * Zły adres lub hasło dają jeden, ogólny komunikat (nie zdradza, czy konto istnieje).
      * Zablokowane konto z poprawnym hasłem dostaje 403 i osobny komunikat.
+     * Po 5 nieudanych próbach z jednego adresu IP na to samo konto (albo 20 na dowolne konta)
+     * logowanie jest wstrzymane na kilka minut: 429 z nagłówkiem Retry-After. Każda nieudana próba
+     * trafia do dziennika failed_logins (bez hasła).
      * Po poprawnym logowaniu id sesji jest wymieniane, a użytkownik trafia na /account (303).
      */
     public function authenticate(): void
     {
+        $this->requireSecureConnection();
         $this->requireValidCsrf();
 
         $email = trim($this->postString('email'));
@@ -73,9 +83,25 @@ final class SecurityController extends AppController
             return;
         }
 
+        $ipAddress = $this->clientIp();
+
+        // blokada sprawdzana przed weryfikacją hasła, więc w czasie blokady nawet poprawne hasło nie otwiera konta
+        $retryAfter = $this->throttle()->retryAfter($email, $ipAddress);
+
+        if ($retryAfter > 0) {
+            http_response_code(429);
+            header('Retry-After: ' . $retryAfter);
+            $this->renderLogin([], ['email' => $email], $this->text('login.too_many_attempts', [
+                'minutes' => (string) max(1, (int) ceil($retryAfter / 60)),
+            ]));
+
+            return;
+        }
+
         try {
             $user = $this->auth()->authenticate($email, $password);
         } catch (AccountBlockedException) {
+            $this->throttle()->recordFailure($email, $ipAddress, FailedLoginRepositoryInterface::ACCOUNT_BLOCKED, $this->userAgent());
             http_response_code(403);
             $this->renderLogin([], ['email' => $email], $this->text('login.account_blocked'));
 
@@ -83,6 +109,7 @@ final class SecurityController extends AppController
         }
 
         if ($user === null) {
+            $this->throttle()->recordFailure($email, $ipAddress, FailedLoginRepositoryInterface::INVALID_CREDENTIALS, $this->userAgent());
             http_response_code(422);
             $this->renderLogin([], ['email' => $email], $this->text('login.invalid_credentials'));
 
@@ -97,6 +124,7 @@ final class SecurityController extends AppController
     /** GET /register – formularz rejestracji. */
     public function register(): void
     {
+        $this->requireSecureConnection();
         $this->redirectIfLoggedIn();
         $this->renderRegister();
     }
@@ -108,6 +136,7 @@ final class SecurityController extends AppController
      */
     public function createAccount(): void
     {
+        $this->requireSecureConnection();
         $this->requireValidCsrf();
 
         $email = trim($this->postString('email'));
@@ -144,12 +173,35 @@ final class SecurityController extends AppController
      */
     public function logout(): void
     {
+        $this->requireSecureConnection();
         $this->requireValidCsrf();
 
         Session::destroy();
 
         // sesja nie istnieje, więc komunikat przechodzi w adresie (jak ?registered=1)
         $this->redirect('/login?logged_out=1');
+    }
+
+    /** Serwis ograniczający próby logowania powstaje przy pierwszym użyciu, na wspólnym połączeniu z bazą. */
+    private function throttle(): LoginThrottle
+    {
+        return $this->throttle ??= new LoginThrottle(new PostgresFailedLoginRepository(Database::shared()));
+    }
+
+    /** Adres IP połączenia (REMOTE_ADDR); nagłówków typu X-Forwarded-For nie używamy, bo klient może je podrobić. */
+    private function clientIp(): string
+    {
+        $address = $_SERVER['REMOTE_ADDR'] ?? '';
+
+        return filter_var($address, FILTER_VALIDATE_IP) !== false ? $address : '0.0.0.0';
+    }
+
+    private function userAgent(): ?string
+    {
+        $agent = $_SERVER['HTTP_USER_AGENT'] ?? null;
+
+        // do dziennika trafia tylko tekst bez znaków sterujących
+        return is_string($agent) ? preg_replace('/[[:cntrl:]]/', '', $agent) : null;
     }
 
     /** Zalogowany nie ma po co oglądać formularzy logowania i rejestracji. */

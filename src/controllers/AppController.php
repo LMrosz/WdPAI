@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace App\Controller;
 
-use App\Database;
 use App\Exception\BadRequestException;
 use App\Exception\ForbiddenException;
 use App\Exception\UnauthorizedException;
@@ -211,6 +210,18 @@ abstract class AppController
         return $user;
     }
 
+    /**
+     * Przy wymuszonym HTTPS (FORCE_HTTPS=1) odmawia obsługi żądania przez zwykłe HTTP (403).
+     * Zwykle nginx przekierowuje HTTP na HTTPS, zanim żądanie dotrze do PHP; to druga linia obrony,
+     * gdyby aplikacja została udostępniona inaczej. Dane logowania nie mogą wędrować jawnym tekstem.
+     */
+    protected function requireSecureConnection(): void
+    {
+        if (Session::httpsRequired() && !Session::isHttps()) {
+            throw new ForbiddenException('HTTPS is required');
+        }
+    }
+
     /** Token CSRF sesji (tworzony przy pierwszym użyciu); trafia do ukrytego pola każdego formularza POST. */
     protected function csrfToken(): string
     {
@@ -299,6 +310,6 @@ abstract class AppController
 
     protected function users(): UserRepositoryInterface
     {
-        return $this->userRepository ??= new PostgresUserRepository((new Database())->connect());
+        return $this->userRepository ??= PostgresUserRepository::instance();
     }
-}
+}

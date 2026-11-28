@@ -375,6 +375,7 @@ return [
         'logged_out' => 'Wylogowano. Do zobaczenia w winnicy!',
         'invalid_credentials' => 'Nieprawidłowy e-mail lub hasło.',
         'account_blocked' => 'To konto zostało zablokowane przez administratora. Skontaktuj się z winnicą.',
+        'too_many_attempts' => 'Zbyt wiele nieudanych prób logowania. Spróbuj ponownie za {minutes} min.',
         'no_account' => 'Nie masz konta?',
         'register_link' => 'Zarejestruj się',
         'back' => 'Wróć na stronę główną',

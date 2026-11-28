@@ -11,7 +11,9 @@ use App\Model\User;
  *
  * Ciasteczko sesji: bez daty ważności (znika z zamknięciem przeglądarki), HttpOnly (niedostępne
  * dla JavaScriptu), SameSite=Lax (nie jest wysyłane w żądaniach POST z innych witryn) i Secure
- * tylko przy HTTPS, żeby lokalnie po http://localhost sesja nadal działała.
+ * (przeglądarka nie wyśle go przez HTTP). Secure jest ustawiane, gdy żądanie przyszło przez HTTPS
+ * albo gdy aplikacja wymaga HTTPS (zmienna FORCE_HTTPS); wyłączenie tej zmiennej pozwala pracować po
+ * http://localhost bez certyfikatu.
  */
 final class Session
 {
@@ -21,10 +23,16 @@ final class Session
             return;
         }
 
+        // identyfikator sesji tylko z ciasteczka (nie z adresu), a nieznany identyfikator od klienta
+        // jest odrzucany zamiast przyjęty (ochrona przed session fixation)
+        ini_set('session.use_only_cookies', '1');
+        ini_set('session.use_strict_mode', '1');
+        ini_set('session.use_trans_sid', '0');
+
         session_set_cookie_params([
             'lifetime' => 0,
             'path' => '/',
-            'secure' => self::isHttps(),
+            'secure' => self::isHttps() || self::httpsRequired(),
             'httponly' => true,
             'samesite' => 'Lax',
         ]);
@@ -79,7 +87,14 @@ final class Session
         session_destroy();
     }
 
-    private static function isHttps(): bool
+    /** Czy aplikacja ma działać wyłącznie przez HTTPS (zmienna środowiskowa FORCE_HTTPS=1). */
+    public static function httpsRequired(): bool
+    {
+        return filter_var(getenv('FORCE_HTTPS'), FILTER_VALIDATE_BOOLEAN);
+    }
+
+    /** Czy bieżące żądanie przyszło przez HTTPS (nginx przekazuje to do PHP-FPM jako HTTPS=on). */
+    public static function isHttps(): bool
     {
         return (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off')
             || ($_SERVER['HTTP_X_FORWARDED_PROTO'] ?? '') === 'https';
